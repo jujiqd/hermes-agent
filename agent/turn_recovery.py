@@ -828,10 +828,17 @@ def limit_reset_epoch(agent: Any, api_error: Exception) -> Optional[float]:
         return None
 
 
-def _stamp_limit_reset(result: dict[str, Any], agent: Any, api_error: Exception) -> None:
+_RESET_AT_UNSET = object()
+
+
+def _stamp_limit_reset(
+    result: dict[str, Any], agent: Any, api_error: Exception, *, resets_at: Any = _RESET_AT_UNSET,
+) -> None:
     """``failure_resets_at`` for structured clients (Desktop card: "Limit resets at HH:mm") and the
-    same sentence appended to the chat text every plain surface (CLI/TUI/gateway) renders (#98852)."""
-    resets_at = limit_reset_epoch(agent, api_error)
+    same sentence appended to the chat text every plain surface (CLI/TUI/gateway) renders (#98852).
+    A caller that already resolved the reset may pass it so copy and stamp use exactly one source."""
+    if resets_at is _RESET_AT_UNSET:
+        resets_at = limit_reset_epoch(agent, api_error)
     if resets_at is None:
         return
     result["failure_resets_at"] = resets_at
@@ -1199,6 +1206,9 @@ def max_retries_exhausted_result(
     _billing_block = None
     _billing_unverified = False
     _free_tier_kind = ""
+    # Resolve once for both the prose branch and the appended reset line. The classifier
+    # recognizes a few provider body shapes the generic surface parser does not (#140737).
+    _reset_at = limit_reset_epoch(agent, api_error) or classified.error_context.get("reset_at")
     if _is_billing:
         _billing_unverified = classified.billing_unverified
         _final_response = _billing_terminal_label(_final_summary, _billing_unverified)
@@ -1211,7 +1221,6 @@ def max_retries_exhausted_result(
     else:
         # Every surface reads final_response (the 💡 lines above are CLI-only), so the chat
         # text carries the plain what-happened + next step itself.
-        _reset_at = classified.error_context.get("reset_at")
         _final_response = exhausted_copy(
             classified.reason.value, label=provider_label_for(provider), attempts=attempts,
             summary=_final_summary, reset_seconds=_reset_at - time.time() if _reset_at else None,
@@ -1252,7 +1261,7 @@ def max_retries_exhausted_result(
     if _keep_partial:
         result["final_response"] = _final_response
         result["partial"] = True
-    _stamp_limit_reset(result, agent, api_error)
+    _stamp_limit_reset(result, agent, api_error, resets_at=_reset_at)
     if _free_tier_kind:
         _stamp_free_tier(result, _free_tier_kind, (
             _welcome_tier_guidance(classified, model=model, in_chat=True, door=False)
