@@ -241,6 +241,25 @@ _LISTABLE_CHILD_SQL = (f"(s.parent_session_id IS NULL OR {_BRANCH_CHILD_SQL.form
     f" OR {_RESET_CHILD_SQL.format(a='s')})")
 
 
+def session_provenance_flags(model_config: Any) -> dict[str, bool]:
+    """Provenance bits a client may see, derived from one row's ``model_config``.
+
+    ``model_config`` never crosses a REST API (it can carry provider secrets), so the projections
+    that ship a row expose these booleans instead.  ``is_reset_child`` is the Python owner of
+    ``_RESET_CHILD_SQL``'s stable-marker half: a ``/new`` reset keeps ``parent_session_id`` for
+    durable lineage but starts a NEW conversation, so a client that nests on the parent edge must
+    not render it as a fork.  The legacy same-key heuristic needs the parent row and is SQL-only.
+    """
+    if isinstance(model_config, str):
+        try:
+            model_config = json.loads(model_config)
+        except (TypeError, ValueError):
+            model_config = None
+    config = model_config if isinstance(model_config, dict) else {}
+    return {"is_internal_child": config.get("_delegate_from") is not None,
+            "is_reset_child": bool(config.get("_reset_from"))}
+
+
 def _ephemeral_child_sql(alias: str = "s") -> str:
     """Subagent runs, not branch, reset, or compression children."""
     return (f"({alias}.parent_session_id IS NOT NULL AND NOT ({_BRANCH_CHILD_SQL.format(a=alias)})"
