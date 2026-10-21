@@ -104,7 +104,7 @@ def _git_out(cwd: Path, *args: str, timeout: int = 30) -> Optional[str]:
 
 # --- Constants ---
 
-VALID_INITIAL_STATUSES = {"running", "blocked"}
+VALID_INITIAL_STATUSES = {"ready", "running", "blocked"}
 
 # Typed block reasons (routing in ``_route_block``); ``None`` = legacy un-typed.
 VALID_BLOCK_KINDS = {"dependency", "needs_input", "capability", "transient"}
@@ -307,6 +307,10 @@ DEFAULT_CRASH_GRACE_SECONDS = 30
 # Worker exit "provider rate-limited": released WITHOUT counting a failure (the
 # breaker must never trip on a throttle). 75 == BSD EX_TEMPFAIL.
 KANBAN_RATE_LIMIT_EXIT_CODE = 75
+
+# Issue 22 worker could not acquire its bound session's active lease. The
+# dispatcher treats this as a neutral requeue (like a transient quota wall).
+KANBAN_SESSION_BUSY_EXIT_CODE = 76
 
 # Worker exit "provider rejected the configuration": credential revoked (401/403), model gone
 # (404), TLS chain broken — a retry cannot fix it, so the dispatcher parks the card blocked on
@@ -2678,6 +2682,8 @@ def complete_task(
         # reopened while this task waited.
         if not _parents_satisfied(conn, task_id):
             return False
+        from hermes_cli.issue_delivery import completion_evidence
+        metadata = completion_evidence(conn, task_id, expected_run_id, metadata)
         if acceptance is not None and not record_acceptance(conn, task_id, acceptance):
             return False
         trow = conn.execute(
@@ -3897,27 +3903,8 @@ def schedule_task(
 # --- Worker context builder (what a spawned worker sees) ---
 
 def build_worker_context(conn: sqlite3.Connection, task_id: str) -> str:
-    """Everything a worker should read about its task: header, body,
-    attachments, prior attempts, done-parent handoffs, the assignee's recent
-    work, comments. Lists are tail-capped and fields char-capped
-    (``_CTX_MAX_*``) so the prompt stays bounded on pathological boards."""
-    task = get_task(conn, task_id)
-    if not task:
-        raise ValueError(f"unknown task {task_id}")
-    from hermes_cli.kanban_db_context import (
-        _ctx_attachments, _ctx_comments, _ctx_header, _ctx_parent_results, _ctx_prior_attempts,
-        _ctx_role_history,
-    )
-    # One clock reading so every relative age in this rendering agrees.
-    now = int(time.time())
-    lines: list[str] = []
-    _ctx_header(lines, task)
-    _ctx_attachments(lines, list_attachments(conn, task_id))
-    _ctx_prior_attempts(lines, conn, task_id, now)
-    _ctx_parent_results(lines, conn, task_id, now)
-    _ctx_role_history(lines, conn, task, now)
-    _ctx_comments(lines, list_comments(conn, task_id), now)
-    return "\n".join(lines).rstrip() + "\n"
+    from hermes_cli.kanban_db_context import build_worker_context as build_context
+    return build_context(conn, task_id)
 
 
 # --- Stats + SLA helpers ---
