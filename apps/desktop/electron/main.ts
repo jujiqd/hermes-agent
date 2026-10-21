@@ -232,6 +232,7 @@ import {
 } from './desktop-profile'
 import { registryPrimaryBootRoute, resolveDesktopRemoteRoute, v1SshTerminalPoolKey } from './desktop-remote-route'
 import { type DesktopSharedMetrics, registerDesktopSharedMetrics } from './desktop-shared-metrics'
+import { registerDesktopStorageIpc } from './desktop-storage'
 import {
   buildPosixCleanupScript,
   buildWindowsCleanupScript,
@@ -267,6 +268,7 @@ import {
 } from './find-in-page'
 import { createFirstRunSetupGate } from './first-run-setup-gate'
 import { registerFsIpc } from './fs-ipc'
+import { directoryExists, fileExists } from './fs-probes'
 import { downloadViaTokenToFile as downloadViaNativeGatewayToFile } from './gateway-download-transport'
 import type {
   GatewayFileSaveContext,
@@ -2751,24 +2753,8 @@ async function advanceBootProgress(phase, message, progress) {
   }
 }
 
-function fileExists(filePath) {
-  try {
-    return fs.statSync(filePath).isFile()
-  } catch {
-    return false
-  }
-}
-
 function isGitCheckout(root: string): boolean {
   return fs.existsSync(path.join(root, '.git'))
-}
-
-function directoryExists(filePath) {
-  try {
-    return fs.statSync(filePath).isDirectory()
-  } catch {
-    return false
-  }
 }
 
 // --- in-app update mutual exclusion (#50238) -------------------------------
@@ -15276,6 +15262,7 @@ ipcMain.handle('hermes:gateway:ws-url-for', async (_event, payload) => {
 
 const pluginWsUrl = createPluginWsUrlHandler({ ensureBackend, ensureRegistryBackend, forgetLocalGatewayDescriptor,
   forgetRegistryLocalGatewayDescriptor, launchHome: HERMES_HOME, prepare: localGatewayDials.preparePlugin })
+
 ipcMain.handle('hermes:plugin:ws-url', (event, payload) => pluginWsUrl(payload ?? {}, event.sender.id))
 
 // Transactional update for a Desktop-managed SSH install. Unlike the generic
@@ -17761,6 +17748,12 @@ async function runDesktopUninstall(mode: string): Promise<DesktopUninstallResult
 
   return { ok: true, mode, willRemoveAppBundle: Boolean(removeBundle), scriptPath }
 }
+
+registerDesktopStorageIpc({
+  ipcMain,
+  hermesHome: () => HERMES_HOME,
+  showItemInFolder: (target: string) => shell.showItemInFolder(target)
+})
 
 registerDesktopUninstallIpc({
   ipcMain,

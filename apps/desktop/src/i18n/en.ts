@@ -8,6 +8,7 @@ import { enCatalogInstall } from './en_catalog_install'
 import { enClarify } from './en_clarify'
 import { enConnectorAccounts } from './en_connector_accounts'
 import { enConnectorCard } from './en_connector_card'
+import { enCustomEndpoints } from './en_custom_endpoints'
 import { enGatewayGroupOpen, enSkillDeepLink } from './en_deep_links'
 import { enErrorLayers } from './en_error_layers'
 import { enExternalOpenFailed } from './en_external_open'
@@ -20,6 +21,7 @@ import { enOnboarding } from './en_onboarding'
 import { enPluginUpdate } from './en_plugin_update'
 import { enProjects } from './en_projects'
 import { enSharedMetrics } from './en_shared_metrics'
+import { enStorageSection } from './en_storage_section'
 import { enThemePicker } from './en_theme_picker'
 import { enUninstallSection } from './en_uninstall_section'
 import { enUpdateChannel } from './en_update_channel'
@@ -756,6 +758,7 @@ export const en: Translations = {
       mcp: 'MCP',
       archivedChats: 'Archived Chats',
       sessions: 'Sessions',
+      storage: 'Storage',
       about: 'About',
       billing: 'Billing',
       notifications: 'Notifications',
@@ -1140,47 +1143,8 @@ export const en: Translations = {
     fieldLabels: FIELD_LABELS,
     fieldDescriptions: FIELD_DESCRIPTIONS,
     uninstallSection: enUninstallSection,
-    customEndpoints: {
-      active: 'Active',
-      apiKeySet: 'API key set',
-      use: 'Use',
-      editTitle: 'Edit Endpoint',
-      addTitle: 'Add Endpoint',
-      fields: {
-        name: 'Name',
-        providerId: 'Provider ID',
-        endpointUrl: 'Endpoint URL',
-        defaultModel: 'Default Model',
-        context: 'Context',
-        apiKey: 'API Key',
-        apiKeyNewPlaceholder: 'Leave blank to keep current key',
-        apiKeyPlaceholder: 'Optional',
-        useNewChats: 'Use for new chats',
-        discoverModels: 'Discover models'
-      },
-      test: 'Test',
-      save: 'Save',
-      newEndpoint: 'New endpoint',
-      apiMode: 'API Mode',
-      autoDetect: 'Auto-detect',
-      couldNotLoad: 'Could not load custom endpoints',
-      endpointSaved: 'Custom endpoint saved.',
-      saveFailed: 'Save failed',
-      endpointReachable: 'Endpoint is reachable.',
-      endpointReachableTransport: transport => `Endpoint is reachable (${transport} route served).`,
-      endpointReachableModels: (reachable, count) => `${reachable} Found ${count} models.`,
-      endpointValidationFailed: 'Endpoint validation failed.',
-      validationFailed: 'Validation failed',
-      activationFailed: 'Activation failed',
-      deleteConfirm: name => `Delete ${name}?`,
-      deleteFailed: 'Delete failed',
-      title: 'Custom Endpoints',
-      deleteEndpoint: 'Delete endpoint',
-      emptyDescription: 'Add an OpenAI-compatible endpoint below.',
-      emptyTitle: 'No custom endpoints',
-      namePlaceholder: 'Axet Proxy',
-      contextPlaceholder: 'Auto'
-    },
+    storageSection: enStorageSection,
+    customEndpoints: enCustomEndpoints,
     computerUse: {
       accessibility: 'Accessibility',
       screenRecording: 'Screen Recording',
