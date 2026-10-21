@@ -11,31 +11,11 @@ import { ruModelSettings } from './ru_model_settings'
 import { ruNotices } from './ru_notices'
 import { ruOnboarding } from './ru_onboarding'
 import { ruPluginSettings } from './ru_plugins'
+import { RU_NOUN, RU_PLURAL } from './ru_plurals'
 import { ruProjects } from './ru_projects'
 import { ruSharedMetrics } from './ru_shared_metrics'
 import { ruThemePicker } from './ru_theme_picker'
 import { ruUpdateChannel } from './ru_update_channel'
-
-// RU_PLURAL: (count, one, few, many) — русские формы сущ. падежа
-// RU_NOUN: (count, one, few, many) — формы род. множественного
-// count может быть number или string (часть подписей en.ts передаёт строки)
-const ruNum = (count: number | string) => (typeof count === 'string' ? Number(count) || 0 : count)
-
-const RU_PLURAL = (count: number | string, one: string, few: string, many: string) => {
-  const c = ruNum(count)
-  const n = Math.abs(c) % 10
-  const nn = Math.abs(c) % 100
-
-  return n === 1 && nn !== 11 ? one : n >= 2 && n <= 4 && (nn < 12 || nn > 14) ? few : many
-}
-
-const RU_NOUN = (count: number | string, one: string, few: string, many: string) => {
-  const c = ruNum(count)
-  const n = Math.abs(c) % 10
-  const nn = Math.abs(c) % 100
-
-  return n === 1 && nn !== 11 ? one : n >= 2 && n <= 4 && (nn < 12 || nn > 14) ? few : many
-}
 
 export const ruOverrides = {
 
@@ -345,6 +325,22 @@ export const ruOverrides = {
     noResults: 'Языки не найдены'
   },
   settings: {
+    localModels: {
+      downloadPausedLabel: 'Приостановлено',
+      downloadPauseAction: 'Приостановить',
+      downloadResumeAction: 'Возобновить',
+      downloadDiscardAction: 'Отменить загрузку',
+      downloadRetryingLabel: 'Соединение прервано. Повторная попытка выполняется автоматически.',
+      downloadWaitingLabel: 'Ожидание завершения другой загрузки этого файла.',
+      downloadVerifyingLabel: 'Проверка и сохранение готового файла.',
+      setupInterruptedLabel: 'Настройка прервана. Возобновите, чтобы завершить настройку.',
+      downloadInterruptedLabel: 'Загрузка прервана. Возобновите её с сохранённого места.',
+      downloadInterruptedEmptyLabel:
+        'Загрузка прервана. Сохранённых данных нет. Возобновите загрузку, чтобы начать заново.',
+
+      downloadDiscardDetail: 'Удалить эту загрузку и её неиспользуемые временные файлы. Готовые файлы будут сохранены.',
+      downloadDiscardFailed: model => `Не удалось отменить загрузку ${model}`
+    },
     subpages: {
       appearanceTheme: 'Тема',
       appearanceTypography: 'Шрифты и масштаб',

@@ -3,6 +3,21 @@ import type { TranslationOverride } from '@hermes/shared/i18n'
 import type { Translations } from './types'
 
 export const deLocalModels: TranslationOverride<Translations['settings']['localModels']> = {
+  downloadPausedLabel: 'Pausiert',
+  downloadPauseAction: 'Pausieren',
+  downloadResumeAction: 'Fortsetzen',
+  downloadDiscardAction: 'Verwerfen',
+  downloadRetryingLabel: 'Verbindung unterbrochen. Automatischer neuer Versuch.',
+  downloadWaitingLabel: 'Warten, bis ein anderer Download dieser Datei abgeschlossen ist.',
+  downloadVerifyingLabel: 'Die vollständige Datei wird geprüft und gespeichert.',
+  setupInterruptedLabel: 'Einrichtung unterbrochen. Fortsetzen, um die Einrichtung abzuschließen.',
+  downloadInterruptedLabel: 'Download unterbrochen. Mit Fortsetzen beim gespeicherten Fortschritt weitermachen.',
+  downloadInterruptedEmptyLabel:
+    'Download unterbrochen. Keine gespeicherten Daten vorhanden. Mit Fortsetzen neu starten.',
+
+  downloadDiscardDetail:
+    'Diesen Download und seine ungenutzten temporären Dateien entfernen. Fertige Dateien bleiben erhalten.',
+  downloadDiscardFailed: model => `Der Download von ${model} konnte nicht verworfen werden`,
   connectionChanged: 'Verbindung für lokale Modelle geändert',
   title: 'Lokale Modelle',
   runtimeTitle: 'Lokale Laufzeit',
@@ -37,7 +52,7 @@ export const deLocalModels: TranslationOverride<Translations['settings']['localM
   noRecommendationAction: 'Modelle durchsuchen',
   downloaded: 'Heruntergeladen',
   downloadAction: size => `Download · ${size}`,
-  downloadProgress: (done, total) => `${done} von ${total} werden heruntergeladen`,
+  downloadProgress: (done, total) => `${done} von ${total}`,
   downloadDoneToast: model => `${model} ist bereit.`,
   installDoneToast: 'Lokale Laufzeit installiert und bereit.',
   quickstartTitle: 'Ein Modell auf diesem Rechner ausführen',

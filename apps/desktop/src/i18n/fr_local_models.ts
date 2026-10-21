@@ -3,6 +3,21 @@ import type { TranslationOverride } from '@hermes/shared/i18n'
 import type { Translations } from './types'
 
 export const frLocalModels: TranslationOverride<Translations['settings']['localModels']> = {
+  downloadPausedLabel: 'En pause',
+  downloadPauseAction: 'Mettre en pause',
+  downloadResumeAction: 'Reprendre',
+  downloadDiscardAction: 'Abandonner',
+  downloadRetryingLabel: 'Connexion interrompue. Nouvelle tentative automatique.',
+  downloadWaitingLabel: 'En attente de la fin d’un autre téléchargement de ce fichier.',
+  downloadVerifyingLabel: 'Vérification et enregistrement du fichier complet.',
+  setupInterruptedLabel: 'Configuration interrompue. Reprenez pour terminer la configuration.',
+  downloadInterruptedLabel: 'Téléchargement interrompu. Reprenez pour continuer depuis la progression enregistrée.',
+  downloadInterruptedEmptyLabel:
+    'Téléchargement interrompu. Aucune donnée enregistrée ne reste. Reprenez pour recommencer.',
+
+  downloadDiscardDetail:
+    'Supprimer ce téléchargement et ses fichiers temporaires inutilisés. Les fichiers terminés seront conservés.',
+  downloadDiscardFailed: model => `Impossible d’abandonner le téléchargement de ${model}`,
   connectionChanged: 'La connexion des modèles locaux a changé',
   title: 'Modèles locaux',
   runtimeTitle: 'Moteur local',
@@ -37,7 +52,7 @@ export const frLocalModels: TranslationOverride<Translations['settings']['localM
   noRecommendationAction: 'Parcourir les modèles',
   downloaded: 'Téléchargé',
   downloadAction: size => `Télécharger · ${size}`,
-  downloadProgress: (done, total) => `Téléchargement de ${done} sur ${total}`,
+  downloadProgress: (done, total) => `${done} sur ${total}`,
   downloadDoneToast: model => `${model} est prêt.`,
   installDoneToast: 'Le moteur local est installé et prêt.',
   quickstartTitle: 'Exécuter un modèle sur cette machine',

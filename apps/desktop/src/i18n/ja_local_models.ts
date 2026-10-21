@@ -45,6 +45,17 @@ export const jaLocalModels: TranslationOverride<Translations['settings']['localM
   downloadPausedLabel: '一時停止中',
   downloadPauseAction: '一時停止',
   downloadResumeAction: '再開',
+  downloadDiscardAction: '破棄',
+  downloadRetryingLabel: '接続が中断されました。自動的に再試行します。',
+  downloadWaitingLabel: 'このファイルの別のダウンロードが完了するまで待機しています。',
+  downloadVerifyingLabel: '完了したファイルを検証して保存しています。',
+  setupInterruptedLabel: 'セットアップが中断されました。再開してセットアップを完了してください。',
+  downloadInterruptedLabel: 'ダウンロードが中断されました。保存済みの進行状況から再開してください。',
+  downloadInterruptedEmptyLabel:
+    'ダウンロードが中断されました。保存済みのデータがありません。再開すると最初から開始します。',
+
+  downloadDiscardDetail: 'このダウンロードと未使用の一時ファイルを削除します。完了したファイルは保持されます。',
+  downloadDiscardFailed: model => `${model} のダウンロードを破棄できませんでした`,
   downloadDoneToast: model => `${model} の準備ができました。`,
   installDoneToast: 'ローカルランタイムのインストールが完了しました。',
   useAction: '使用する',

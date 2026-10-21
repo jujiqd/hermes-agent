@@ -5,6 +5,7 @@ from __future__ import annotations
 import errno
 import http.client
 import logging
+import re
 import socket
 import ssl
 import time
@@ -17,6 +18,7 @@ from typing import Callable, TypeVar
 _T = TypeVar("_T")
 _ATTEMPTS = 4
 _MAX_DELAY = 30.0
+_MAX_RECOVERY_DELAY = 300.0
 _HTTP_RETRY = frozenset({408, 429, 500, 502, 503, 504})
 _R2_HOSTS = frozenset({"hermes-assets.nousresearch.com"})
 _NETWORK_ERRNOS = frozenset({
@@ -26,9 +28,23 @@ _NETWORK_ERRNOS = frozenset({
 })
 
 
-def is_transient(exc: Exception) -> bool:
+def http_status(exc: Exception) -> int | None:
+    """Recover CONNECT status too: http.client exposes it only in an OSError."""
     if isinstance(exc, urllib.error.HTTPError):
-        return exc.code in _HTTP_RETRY
+        return exc.code
+    if isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, Exception):
+        return http_status(exc.reason)
+    if isinstance(exc, OSError) and exc.errno is None:
+        match = re.fullmatch(r"Tunnel connection failed: ([1-5][0-9]{2})(?: .*)?", str(exc))
+        if match:
+            return int(match[1])
+    return None
+
+
+def is_transient(exc: Exception) -> bool:
+    status = http_status(exc)
+    if status is not None:
+        return status in _HTTP_RETRY
     if isinstance(exc, urllib.error.URLError):
         return isinstance(exc.reason, Exception) and is_transient(exc.reason)
     if isinstance(exc, (ssl.SSLEOFError, ssl.SSLZeroReturnError)):
@@ -68,7 +84,7 @@ def edge_block(exc: BaseException) -> str | None:
             "retry from another network")
 
 
-def _delay(exc: Exception, attempt: int) -> float:
+def _delay(exc: Exception, attempt: int, *, maximum: float | None = _MAX_DELAY) -> float:
     delay = float(2 ** attempt)
     if isinstance(exc, urllib.error.HTTPError):
         value = exc.headers.get("Retry-After", "") if exc.headers else ""
@@ -84,30 +100,51 @@ def _delay(exc: Exception, attempt: int) -> float:
                 except (TypeError, ValueError, OverflowError):
                     retry_after = 0.0
             delay = max(delay, retry_after)
-    return min(delay, _MAX_DELAY)
+    return delay if maximum is None else min(delay, maximum)
 
 
 def retry_network(
     operation: Callable[[], _T], *, wait: Callable[[float], None] | None = None,
+    progress: Callable[[], int] | None = None,
 ) -> _T:
     """Retry the complete request and body read, never an install or publish.
 
     The caller resets attempt-local buffers and keeps any resumable bytes.
     A download supplies an interruptible wait so pause does not wait for backoff.
+    Downloads supply ``progress``: durable forward progress renews their
+    budget. Metadata and non-resumable requests still get four attempts.
     """
-    attempt = 1
+    failures_since_progress = 0
+    backoff = 0
+    saved = progress() if progress is not None else 0
     while True:
         try:
             return operation()
         except Exception as exc:
             if isinstance(exc, urllib.error.HTTPError):
                 exc.close()
-            if not is_transient(exc) or attempt >= _ATTEMPTS:
+            if not is_transient(exc):
                 raise
-            delay = _delay(exc, attempt - 1)
-            attempt += 1
+            current = progress() if progress is not None else saved
+            if current > saved:
+                failures_since_progress = 0
+                backoff = 0
+                saved = current
+            else:
+                failures_since_progress += 1
+            if failures_since_progress >= _ATTEMPTS:
+                raise
+            delay = _delay(exc, backoff)
+            if progress is not None:
+                # Do not retry a resumable transfer before Retry-After. A
+                # longer server embargo parks it instead of blocking for hours.
+                requested = _delay(exc, 0, maximum=None)
+                if requested > _MAX_RECOVERY_DELAY:
+                    raise
+                delay = max(delay, requested)
+            backoff += 1
             logging.getLogger(__name__).warning(
-                "network request failed (%s); retrying in %gs (attempt %d/%d)",
-                exc, delay, attempt, _ATTEMPTS,
+                "network request failed (%s); retrying in %gs (%d/%d failures without progress)",
+                exc, delay, failures_since_progress, _ATTEMPTS,
             )
             (wait or time.sleep)(delay)

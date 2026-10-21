@@ -1532,6 +1532,8 @@ export interface LocalRuntimeJob {
   model_id: string | null
   status: 'done' | 'error' | 'paused' | 'running'
   phase: string
+  /** The setup step stays stable while its transport retries or waits. */
+  setup_stage?: 'engine' | 'model' | 'finish'
   detail: string
   total_bytes: number | null
   done_bytes: number
@@ -1549,6 +1551,7 @@ export interface LocalRuntimeJob {
    * (server start, default assignment, non-download quickstart legs). */
   can_pause?: boolean
   can_resume?: boolean
+  can_discard?: boolean
   /** The backend has accepted a pause request; the status flips when the
    * downloader actually parks. */
   pause_requested?: boolean

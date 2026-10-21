@@ -12,6 +12,21 @@ export const arSettings = {
     noResults: 'لا توجد لغة مطابقة'
   },
   settings: {
+    localModels: {
+      downloadPausedLabel: 'متوقف مؤقتًا',
+      downloadPauseAction: 'إيقاف مؤقت',
+      downloadResumeAction: 'استئناف',
+      downloadDiscardAction: 'تجاهل',
+      downloadRetryingLabel: 'انقطع الاتصال. تجري إعادة المحاولة تلقائيًا.',
+      downloadWaitingLabel: 'في انتظار اكتمال تنزيل آخر لهذا الملف.',
+      downloadVerifyingLabel: 'جارٍ التحقق من الملف المكتمل وحفظه.',
+      setupInterruptedLabel: 'توقف الإعداد. استأنف لإكمال الإعداد.',
+      downloadInterruptedLabel: 'انقطع التنزيل. استأنف للمتابعة من التقدم المحفوظ.',
+      downloadInterruptedEmptyLabel: 'انقطع التنزيل. لا توجد بيانات محفوظة. استأنف للبدء من جديد.',
+
+      downloadDiscardDetail: 'إزالة هذا التنزيل وملفاته المؤقتة غير المستخدمة. ستبقى الملفات المكتملة.',
+      downloadDiscardFailed: model => `تعذر تجاهل تنزيل ${model}`
+    },
     subpages: {
       appearanceTheme: 'السمة',
       appearanceTypography: 'الخطوط والتحجيم',

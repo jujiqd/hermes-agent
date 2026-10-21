@@ -30,6 +30,7 @@ import { LocalModelsSettings } from './local-models-settings'
 vi.mock('@/hermes', () => ({
   activateLocalModel: vi.fn(),
   deleteLocalModel: vi.fn(),
+  discardLocalDownload: vi.fn(),
   downloadBrowsedModel: vi.fn(),
   downloadLocalModel: vi.fn(),
   ejectLocalModel: vi.fn(),
@@ -203,6 +204,54 @@ afterEach(async () => {
 })
 
 describe('LocalModelsSettings', () => {
+  it.each(['quickstart', 'runtime-install', 'model-download'] as const)(
+    'keeps %s recovery usable while machine metadata is unavailable',
+    async kind => {
+      mocked.getLocalModelsStatus.mockImplementation(() => new Promise(() => {}))
+      mocked.getLocalCatalog.mockRejectedValue(new Error('Catalog timed out'))
+
+      const job: LocalRuntimeJob = {
+        job_id: 'metadata-independent',
+        kind,
+        target: FITTING_MODEL.display_name,
+        model_id: FITTING_MODEL.id,
+        status: 'paused',
+        phase: 'interrupted',
+        detail: 'Saved download',
+        total_bytes: 100,
+        done_bytes: 30,
+        percent: 30,
+        error: null,
+        can_resume: true,
+        can_discard: true
+      }
+
+      queryClient.setQueryData(localModelsKey(localModelsOwner(), 'jobs'), [job])
+      mocked.resumeLocalDownload.mockResolvedValue({ ok: true, resumed: true })
+      mocked.discardLocalDownload.mockResolvedValue({ ok: true, discarded: true })
+      renderPane()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Resume' }))
+      await waitFor(() =>
+        expect(mocked.resumeLocalDownload).toHaveBeenCalledWith(job.job_id, { connectionId: null, profile: 'default' })
+      )
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Discard' }).hasAttribute('disabled')).toBe(false)
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+      await waitFor(() =>
+        expect(mocked.discardLocalDownload).toHaveBeenCalledWith(job.job_id, { connectionId: null, profile: 'default' })
+      )
+
+      await act(async () => {
+        queryClient.setQueryData(localModelsKey(localModelsOwner(), 'status'), BASE_STATUS)
+        queryClient.setQueryData(localModelsKey(localModelsOwner(), 'catalog'), [FITTING_MODEL])
+      })
+      expect(screen.getAllByRole('button', { name: 'Resume' })).toHaveLength(1)
+      expect(screen.getAllByRole('button', { name: 'Discard' })).toHaveLength(1)
+    }
+  )
+
   it.each(['starting', 'running'])(
     'keeps the runtime update view visible with no staged models while %s',
     async phase => {
@@ -493,8 +542,33 @@ describe('quickstart', () => {
     // detail is only the lead when there are no bytes to report yet.
     expect(await screen.findByText('Qwen3.6 27B')).toBeTruthy()
     expect(await screen.findByText(/^Downloading · /)).toBeTruthy()
+    expect(screen.getByText('Model', { exact: true }).getAttribute('aria-current')).toBe('step')
     // One job, one view: no setup or model-choice buttons while it runs.
     expect(screen.queryByRole('button', { name: /set up for me/i })).toBeNull()
+  })
+
+  it.each([
+    ['engine', 'Engine'],
+    ['model', 'Model'],
+    ['finish', 'Finish']
+  ] as const)('keeps the %s setup step after interruption', async (stage, label) => {
+    queryClient.setQueryData(localModelsKey(localModelsOwner(), 'jobs'), [
+      {
+        job_id: 'restored',
+        kind: 'quickstart',
+        target: FITTING_MODEL.display_name,
+        model_id: FITTING_MODEL.id,
+        status: 'paused',
+        phase: 'interrupted',
+        setup_stage: stage,
+        detail: 'Setup interrupted',
+        total_bytes: 100,
+        done_bytes: 30,
+        error: null
+      }
+    ])
+    renderPane()
+    expect((await screen.findByText(label, { exact: true })).getAttribute('aria-current')).toBe('step')
   })
 
   it('skips the card entirely once a model is staged', async () => {
