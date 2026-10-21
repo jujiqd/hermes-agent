@@ -30,7 +30,8 @@ logger = logging.getLogger(__name__)
 
 _IDENTITY_ATTR = "_identity"
 # Wire-invisible provenance copied alongside the identity when a source is duplicated.
-_PROVENANCE_ATTRS = ("_transport_adapter_ref", "_authorization_profile_home", _IDENTITY_ATTR)
+_PROVENANCE_ATTRS = ("_transport_adapter_ref", "_authorization_profile_home", "_native_provenance_verified",
+                     _IDENTITY_ATTR)
 
 
 class IdentityUnresolved(RuntimeError):
@@ -99,7 +100,7 @@ def clear_identity(source: Any) -> None:
     per speaker). ``source.profile`` is the previous event's routing *result*; left in place it
     short-circuits the route and the new speaker runs as the old one."""
     for attr in (_IDENTITY_ATTR, "profile_route_rejected", "_authorization_profile_home", "_rejected_route_profile",
-                 "_protected_channel_rejected"):
+                 "_protected_channel_rejected", "_native_provenance_verified"):
         with suppress(AttributeError):
             delattr(source, attr)
     with suppress(AttributeError):

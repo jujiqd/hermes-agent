@@ -154,6 +154,60 @@ def test_joint_catalog_keeps_only_selected_mcp_and_no_mcp_stops_later_expansion(
 
 
 @pytest.mark.asyncio
+async def test_native_durable_restore_keeps_protected_catalog_without_inferred_identity(tmp_path, monkeypatch):
+    from gateway.platforms.event import MessageEvent
+    from gateway.run import GatewayRunner
+    from gateway.session_authority import initialize_session_authority
+    from gateway.session_envelope import restore_native
+    from gateway.session_ingress_context import native_callback, register_transport_home
+    from hermes_state_runtime import list_session_admissions
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    runner = GatewayRunner(GatewayConfig.from_dict({"protected_channel_toolsets": [POLICY]}))
+    runner._primary_profile_name = "default"
+    bot = _Stub(PlatformConfig(enabled=True, extra={}), Platform.SLACK)
+    bot.gateway_runner = runner
+    runner.adapters = {Platform.SLACK: bot}
+    runner._is_user_authorized_for_source = lambda *_a, **_k: True
+    authority = await initialize_session_authority(runner, profile_id="default", instance_id="protected")
+    register_transport_home(runner, None, tmp_path)
+    try:
+        event = MessageEvent(text="test", source=_source(bot), message_id="native-1")
+        with native_callback(runner, event, tmp_path):
+            receipt = await authority.admit_native(event)
+        rows = list_session_admissions(authority.db, session_id=receipt.ref.session_id, pending_only=False)
+        assert len(rows) == 1
+        payload = rows[0]["payload"]
+        restored = restore_native(payload, runner)
+        assert identity_of(restored.source) is None
+        assert restored.source._transport_adapter_ref() is bot
+        assert restored.source._native_provenance_verified is True
+        assert runner._resolve_enabled_toolsets_for_source({}, restored.source, "slack") == ["web", "no_mcp"]
+        assert runner._protected_channel_tool_names(restored.source, None)
+
+        restored.source._native_provenance_verified = False
+        with pytest.raises(ProtectedChannelRejected):
+            runner._resolve_enabled_toolsets_for_source({}, restored.source, "slack")
+        restored.source._native_provenance_verified = True
+
+        # Rebind the queued row after a connector restart. The persisted proof
+        # is checked against the newly registered receiver, not the old object.
+        replacement = _Stub(PlatformConfig(enabled=True, extra={}), Platform.SLACK)
+        replacement.gateway_runner = runner
+        runner.adapters = {Platform.SLACK: replacement}
+        restarted = restore_native(payload, runner)
+        assert restarted.source._transport_adapter_ref() is replacement
+        assert runner._resolve_enabled_toolsets_for_source({}, restarted.source, "slack") == ["web", "no_mcp"]
+
+        # A removed receiver cannot be inferred from the stored row or channel.
+        runner.adapters = {}
+        with pytest.raises(ProtectedChannelRejected):
+            runner._resolve_enabled_toolsets_for_source({}, restarted.source, "slack")
+    finally:
+        authority.db.close()
+
+
+@pytest.mark.asyncio
 async def test_protected_turn_cannot_escape_through_proxy(tmp_path, monkeypatch):
     runner, bot = _rig(tmp_path, monkeypatch)
     source = _source(bot)
