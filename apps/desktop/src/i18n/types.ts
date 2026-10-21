@@ -2746,6 +2746,7 @@ catalog: CatalogTranslations
       cost: string
       manual: string
       preview: string
+      activity: string
       pr: string
       needsInput: string
       working: string
@@ -2833,6 +2834,7 @@ catalog: CatalogTranslations
       waitingForAnswer: string
       finishedUnread: string
       backgroundRunning: string
+      liveWork: (subagents: number, background: number) => string
       draftSession: string
       handoffOrigin: (platform: string) => string
       continuationOrigin: string
