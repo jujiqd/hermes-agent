@@ -1608,6 +1608,8 @@ export interface BackendUpdateCheckResponse {
   update_available: boolean
   /** A stable release this build already contains: applying it moves back. */
   rollback_to?: null | string
+  /** A stable release `hermes update` refuses: the backend stays on its build. */
+  held?: 'downgrade' | null
   /** Update-available only; absent on older backends. */
   channel?: string
   branch?: null | string
