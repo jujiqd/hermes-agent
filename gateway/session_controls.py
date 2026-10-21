@@ -805,8 +805,27 @@ class AuthorityConnection:
 
     async def cancel(self, ref, params):
         admission_id = params.get('admission_id')
-        if (await self.authority.receipt(self.actor, ref, admission_id)).status != 'queued':
-            return asdict(await self.authority.cancel_queued(self.actor, ref, admission_id))  # started: unaffected
+        receipt = await self.authority.receipt(self.actor, ref, admission_id)
+        if receipt.status == 'started':
+            # Started: stop the running turn HERE, in the same RPC. The caller (ACP editor
+            # cancel, "send now") has already said this turn must die; the old contract answered
+            # stale_generation and left the session.interrupt to a follow-up RPC from the same
+            # client. That follow-up never lands when the cancel itself kills the client first —
+            # OD aborts its run by SIGTERMing the hermes acp bridge ~3s after session/cancel, so
+            # the bridge died between the prompt.cancel and its receipt/interrupt dance and the
+            # gateway-side turn kept running unbounded with no one left to stop it (2026-10-19,
+            # two ~50-minute orphaned turns on one OD conversation). One RPC owns the whole
+            # cancel: this is the same canonical Stop as the queued-claim race below.
+            try:
+                await self.interrupt(ref, {'execution_generation': receipt.execution_generation})
+            except RuntimeStoreError as exc:
+                if exc.reason != 'stale_generation':
+                    raise
+                # The turn settled (or a successor claimed) between the receipt and the
+                # interrupt: nothing of ours is running; report the fresh state.
+            return asdict(await self.authority.receipt(self.actor, ref, admission_id))
+        if receipt.status != 'queued':
+            return asdict(await self.authority.cancel_queued(self.actor, ref, admission_id))
         # Queued at this read, claimed by the drain before the cancel commit: Stop that exact claim (as
         # API and ACP do) instead of refusing while the withdrawn prompt runs.
         row = await self.authority.cancel_or_claimed(self.actor, ref, admission_id)
