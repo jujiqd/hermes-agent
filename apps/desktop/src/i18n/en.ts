@@ -12,6 +12,7 @@ import { enGatewayGroupOpen, enSkillDeepLink } from './en_deep_links'
 import { enErrorLayers } from './en_error_layers'
 import { enExternalOpenFailed } from './en_external_open'
 import { enFirstRun } from './en_first_run'
+import { enLanguage } from './en_language'
 import { enLocalModels } from './en_local_models'
 import { enModelMenu } from './en_model_menu'
 import { enModelSettings } from './en_model_settings'
@@ -20,6 +21,7 @@ import { enOnboarding } from './en_onboarding'
 import { enPluginUpdate } from './en_plugin_update'
 import { enProjects } from './en_projects'
 import { enSharedMetrics } from './en_shared_metrics'
+import { enTemporaryChat } from './en_temporary_chat'
 import { enThemePicker } from './en_theme_picker'
 import { enUninstallSection } from './en_uninstall_section'
 import { enUpdateChannel } from './en_update_channel'
@@ -32,6 +34,7 @@ export const en: Translations = {
   firstRun: enFirstRun,
   // English editorial copy stays in the shipped JSONL; other locales override it.
   intro: { stock: {}, custom: () => [] },
+  ...enTemporaryChat,
   connectors: enConnectorCard,
 
   catalog: enCatalog,
@@ -562,6 +565,7 @@ export const en: Translations = {
       'nav.cron': 'Open scheduled jobs',
       'nav.agents': 'Open agents',
       'session.new': 'New session',
+      'session.newTemporary': 'New temporary chat',
       'session.newTab': 'New session tab',
       'session.newWindow': 'New window',
       'session.next': 'Next session',
@@ -665,15 +669,7 @@ export const en: Translations = {
     previous: 'Previous match'
   },
 
-  language: {
-    label: 'Language',
-    description: 'Choose the language for the desktop interface.',
-    saving: 'Saving language…',
-    saveError: 'Language update failed',
-    switchTo: 'Switch language',
-    searchPlaceholder: 'Search languages…',
-    noResults: 'No languages found'
-  },
+  ...enLanguage,
 
   settings: {
     subpages: {

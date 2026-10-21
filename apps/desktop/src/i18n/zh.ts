@@ -6,6 +6,7 @@ import { zhCatalog, zhSkillDeepLink } from './zh_catalog'
 import { zhClarify } from './zh_clarify'
 import { zhConnectorCard } from './zh_connector_card'
 import { zhFirstRun } from './zh_first_run'
+import { zhLanguage } from './zh_language'
 import { zhLocalModels } from './zh_local_models'
 import { zhModelMenu } from './zh_model_menu'
 import { zhModelSettings } from './zh_model_settings'
@@ -13,6 +14,7 @@ import { zhNotices } from './zh_notices'
 import { zhOnboarding } from './zh_onboarding'
 import { zhProjects } from './zh_projects'
 import { zhSharedMetrics } from './zh_shared_metrics'
+import { zhTemporaryChat } from './zh_temporary_chat'
 import { zhThemePicker } from './zh_theme_picker'
 import { zhUpdateChannel } from './zh_update_channel'
 
@@ -28,6 +30,7 @@ export const zhOverrides = {
   sharedMetrics: zhSharedMetrics,
   firstRun: zhFirstRun,
   intro: introZh,
+  ...zhTemporaryChat,
   connectors: zhConnectorCard,
   sessionImport: {
     title: '从其他应用继续',
@@ -347,6 +350,7 @@ export const zhOverrides = {
       'nav.cron': '打开定时任务',
       'nav.agents': '打开智能体',
       'session.new': '新建会话',
+      'session.newTemporary': '新建临时聊天',
       'session.newTab': '新建会话标签',
       'session.newWindow': '新建窗口',
       'session.next': '下一个会话',
@@ -434,15 +438,7 @@ export const zhOverrides = {
     previous: '上一个匹配'
   },
 
-  language: {
-    label: '语言',
-    description: '选择桌面界面的语言。',
-    saving: '正在保存语言…',
-    saveError: '语言更新失败',
-    switchTo: '切换语言',
-    searchPlaceholder: '搜索语言…',
-    noResults: '未找到语言'
-  },
+  ...zhLanguage,
 
   settings: {
     subpages: {

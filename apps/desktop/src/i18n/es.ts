@@ -6,6 +6,7 @@ import { esClarify } from './es_clarify'
 import { esConnectorAccounts } from './es_connector_accounts'
 import { esConnectorCard } from './es_connector_card'
 import { esFirstRun } from './es_first_run'
+import { esLanguage } from './es_language'
 import { esLocalModels } from './es_local_models'
 import { esModelMenu } from './es_model_menu'
 import { esModelSettings } from './es_model_settings'
@@ -14,6 +15,7 @@ import { esOnboarding } from './es_onboarding'
 import { esPluginUpdate } from './es_plugin_update'
 import { esProjects } from './es_projects'
 import { esSharedMetrics } from './es_shared_metrics'
+import { esTemporaryChat } from './es_temporary_chat'
 import { esThemePicker } from './es_theme_picker'
 import { esUpdateChannel } from './es_update_channel'
 import { introEs } from './intro-es'
@@ -22,6 +24,7 @@ export const esOverrides = {
   sharedMetrics: esSharedMetrics,
   firstRun: esFirstRun,
   intro: introEs,
+  ...esTemporaryChat,
   connectors: esConnectorCard,
   connectorsPage: {
     title: 'Conectores',
@@ -568,6 +571,7 @@ export const esOverrides = {
       'nav.cron': 'Abrir tareas programadas',
       'nav.agents': 'Abrir agentes',
       'session.new': 'Nueva sesión',
+      'session.newTemporary': 'Nuevo chat temporal',
       'session.newTab': 'Nueva pestaña de sesión',
       'session.newWindow': 'Nueva ventana',
       'session.next': 'Siguiente sesión',
@@ -666,15 +670,7 @@ export const esOverrides = {
     next: 'Siguiente coincidencia',
     previous: 'Coincidencia anterior'
   },
-  language: {
-    label: 'Idioma',
-    description: 'Elige el idioma de la interfaz de escritorio.',
-    saving: 'Guardando idioma…',
-    saveError: 'No se pudo actualizar el idioma',
-    switchTo: 'Cambiar idioma',
-    searchPlaceholder: 'Buscar idiomas…',
-    noResults: 'No se encontraron idiomas'
-  },
+  ...esLanguage,
   settings: {
     subpages: {
       appearanceTheme: 'Tema',
