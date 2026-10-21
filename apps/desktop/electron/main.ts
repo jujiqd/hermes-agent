@@ -456,6 +456,7 @@ import {
   decideProfileDeleteAction,
   dispatchConnectionScopedProfileDelete,
   localProfilePoolKeys,
+  namedProfileIsLive,
   ProfileDeletionGate,
   profileNameFromDeleteRequest,
   resolveRouteProfile
@@ -11631,9 +11632,20 @@ async function dialPoolBackend(profile, entry, opts: { forceLocal?: boolean; poo
     }
   }
 
-  assertLocalProfileCanStart(profile, profileDeletionGate, key =>
-    directoryExists(path.join(HERMES_HOME, 'profiles', key))
-  )
+  assertLocalProfileCanStart(profile, profileDeletionGate, key => namedProfileIsLive(
+    path.join(HERMES_HOME, 'profiles', key),
+    path.join(HERMES_HOME, 'profiles', '.deleted', key),
+    candidate => fs.existsSync(candidate),
+    candidate => {
+      try {
+        const stat = fs.lstatSync(candidate)
+
+        return stat.isFile() || stat.isSymbolicLink()
+      } catch {
+        return false
+      }
+    }
+  ))
 
   const connection = await ensureLocalGateway(async () => {
     const backend = await ensureRuntime(
@@ -11668,7 +11680,20 @@ async function dialPoolBackend(profile, entry, opts: { forceLocal?: boolean; poo
     })
     // Update waits yield: retirement or profile deletion may win in that gap.
     assertPoolEntryStillOwned(poolKey, entry)
-    assertLocalProfileCanStart(profile, profileDeletionGate, key => directoryExists(path.join(HERMES_HOME, 'profiles', key)))
+    assertLocalProfileCanStart(profile, profileDeletionGate, key => namedProfileIsLive(
+      path.join(HERMES_HOME, 'profiles', key),
+      path.join(HERMES_HOME, 'profiles', '.deleted', key),
+      candidate => fs.existsSync(candidate),
+      candidate => {
+        try {
+          const stat = fs.lstatSync(candidate)
+
+          return stat.isFile() || stat.isSymbolicLink()
+        } catch {
+          return false
+        }
+      }
+    ))
   }, restartStaleLocalGateway)
 
   assertPoolEntryStillOwned(poolKey, entry)
