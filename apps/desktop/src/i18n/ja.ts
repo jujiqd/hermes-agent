@@ -2254,8 +2254,9 @@ export const jaOverrides = {
       thisMonth: '今月'
     },
     statusDivider: {
+      attention: '要対応',
       working: '実行中',
-      done: '完了'
+      idle: 'アイドル'
     }
   },
 
