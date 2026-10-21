@@ -2974,6 +2974,9 @@ catalog: CatalogTranslations
     folder: string
     images: string
     pasteImage: string
+    pasteIntoPrompt: string
+    pasteIntoPromptFailed: string
+    pasteIntoPromptTooLarge: string
     url: string
     promptSnippets: string
     tipPre: string
