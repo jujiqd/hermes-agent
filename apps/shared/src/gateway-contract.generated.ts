@@ -4674,6 +4674,8 @@ export interface SessionStats {
   model: string
   provider: string
   fallback_model?: string | null
+  estimated_cost_usd?: number | null
+  cost_status?: string | null
 }
 export interface RollbackSessionDiffParams {
   session_id: string
@@ -5695,6 +5697,8 @@ export interface SessionUsagePayload {
   model?: string | null
   provider?: string | null
   fallback_model?: string | null
+  estimated_cost_usd?: number | null
+  cost_status?: string | null
 }
 /** ``prompt_turn._invoke_agent`` ``_on_session_title`` hook. */
 export interface SessionTitlePayload {
