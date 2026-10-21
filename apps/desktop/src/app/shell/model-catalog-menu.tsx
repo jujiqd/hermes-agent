@@ -1176,6 +1176,7 @@ function ModelFamilyRow({
         }
         provider={provider.slug}
         reasoning={caps?.reasoning ?? true}
+        reasoningEfforts={caps?.reasoning_efforts ?? undefined}
         serviceTier={effTier}
         ultrafastSupported={controller.allowSpeed !== false && (caps?.ultrafast ?? false)}
       />
