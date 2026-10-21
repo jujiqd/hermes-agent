@@ -62,8 +62,11 @@ def completion_payload(row, settled, response, captured):
     # final repeats a reply the viewer already painted, so it settles in place.
     captured_result = (captured or {}).get('result') or {}
     if isinstance(captured_result.get('error_surface'), dict):
-        # Only gateway-owned refusals set this (``session_cron.execute``); ``text`` is already their copy.
+        # Gateway-owned refusals already carry their authoritative descriptor.
         complete['error_surface'] = captured_result['error_surface']
+    elif captured_result.get('failure_reason'):
+        from agent.error_surface import build_error_surface_from_result
+        complete['error_surface'] = build_error_surface_from_result(captured_result)
     if response and captured_result.get('response_reused'):
         complete['response_reused'] = True
     if captured_result.get('local_viewer'):
@@ -102,6 +105,8 @@ def _publish_completion(authority, live, ref, row, settled, response, captured):
     except Exception:
         logger.exception('Terminal control cleanup failed for admission %s', row['admission_id'])
     complete = completion_payload(row, settled, response, captured)
+    if live.retry_checkpoint is not None and live.retry_checkpoint['generation'] == row['generation']:
+        complete['retry_token'] = live.retry_checkpoint['token']
     notice = owner_stop_notice(captured, settled['outcome'], row)
     if notice and not complete.get('warning'):
         # ``warning`` is the slot every surface already renders on message.complete (Ink activity
@@ -180,7 +185,9 @@ def commit_and_publish(authority, live, ref, row, response, outcome, captured, s
         settlement['settled'], settlement['response'] = finish_result(
             authority.db, epoch=authority.epoch, row=row, response=response, outcome=outcome,
             result=captured, prepared=prepared, transfers=transfers)
+        checkpoint = _retry_checkpoint(authority, live, ref, row, settlement['settled'], captured)
         with live.event_stream.lock:
+            live.retry_checkpoint = checkpoint
             live.settling.pop(admission_id, None)
             _publish_completion(authority, live, ref, row, settlement['settled'], settlement['response'], captured)
     finally:
@@ -217,8 +224,19 @@ async def settle_with_retry(authority, live, ref, row, response, outcome, captur
 def publish_terminal(authority, ref, row, settled, response, captured):
     """Cleanup cannot withhold a committed outcome; publication is attempted once."""
     live = authority.sessions[ref.session_id]
+    checkpoint = _retry_checkpoint(authority, live, ref, row, settled, captured)
     with live.event_stream.lock:
+        live.retry_checkpoint = checkpoint
         _publish_completion(authority, live, ref, row, settled, response, captured)
     _release_media(authority, row)
     # Idle follows the completion so a viewer cannot mistake a settled turn for a lost frame.
     authority._publish_pending(ref)
+
+
+def _retry_checkpoint(authority, live, ref, row, settled, captured):
+    from gateway.session_retry import prepare_checkpoint
+    try:
+        return prepare_checkpoint(authority, live, ref, row, settled, captured)
+    except (OSError, sqlite3.Error, RuntimeStoreError):
+        logger.warning("Retry checkpoint unavailable for %s", ref.session_id, exc_info=True)
+        return None
