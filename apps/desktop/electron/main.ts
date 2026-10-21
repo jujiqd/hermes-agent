@@ -69,6 +69,7 @@ import {
   type BackendOutputTail,
   claimDecision,
   execText,
+  execTextWithIgnoredStdin,
   isPidOnlyStartMarker,
   pidOnlyStartMarker,
   probeStartMarker,
@@ -9794,7 +9795,7 @@ async function effectiveSshConfigFingerprint(sshConfig) {
   let output: string
 
   try {
-    output = await execText(ssh, args, { timeout: 10_000 })
+    output = await execTextWithIgnoredStdin(ssh, args, { timeout: 10_000 })
   } catch (error) {
     // `ssh -G` only parses local config, so a failure here is the local client
     // itself (missing, broken, or a bad ssh_config) and retrying cannot fix
