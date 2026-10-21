@@ -698,15 +698,19 @@ class _GateSpec:
     smart_log: str            # {command}{description}{session_key}
 
 
+_USER_MAY_STILL_DECIDE = (
+    " Stop the current workflow and wait for the user to respond before taking "
+    "any further destructive or irreversible action."
+)
 _STOP_COMMAND = (
     " The user has NOT consented to this action. Do NOT retry this command, do "
     "NOT rephrase it, and do NOT attempt the same outcome via a different "
-    "command. Stop the current workflow and wait for the user to respond before "
-    "taking any further destructive or irreversible action."
+    "command." + _USER_MAY_STILL_DECIDE
 )
 _STOP_ACTION = (
     " The user has NOT consented to this action. Do NOT retry it, do NOT "
     "rephrase it, and do NOT attempt the same outcome via a different path."
+    + _USER_MAY_STILL_DECIDE
 )
 
 _COMMAND_GATE = _GateSpec(
@@ -756,6 +760,7 @@ _ACTION_GATE = _GateSpec(
     cli_denied=(
         "BLOCKED: User denied this potentially dangerous action (matched "
         "'{description}'). Do NOT retry — the user has explicitly rejected it."
+        + _USER_MAY_STILL_DECIDE
     ),
     smart_log="",
 )

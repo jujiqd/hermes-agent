@@ -247,3 +247,38 @@ class TestRequestToolApproval:
         )
         res = request_tool_approval("computer_use", "click", rule_key="cua")
         assert res == {"approved": True, "message": None}
+
+
+class TestDenialIsNotABan:
+    """A denial is one call the user refused, not consent gone for the session.
+
+    ``request_tool_approval`` documents the plugin path as the SAME human gate as a
+    Tier-2 dangerous command, but the action gate's denial never carried the closing
+    sentence the command gate has ("stop the current workflow and wait for the user
+    to respond"), so the text told the model the user could not decide again and a
+    later explicit request was answered with a refusal and no new prompt.
+    """
+
+    def test_cli_denial_tells_the_model_the_user_can_still_decide(self, monkeypatch):
+        monkeypatch.setattr(approval, "_is_interactive_cli", lambda: True)
+        monkeypatch.setattr(approval, "_is_gateway_approval_context", lambda: False)
+        monkeypatch.setattr(tools_approval_context, "_is_gateway_approval_context", lambda: False)
+        monkeypatch.setattr(approval, "prompt_dangerous_approval", lambda *a, **k: "deny")
+        monkeypatch.setattr(approval_prompt, "prompt_dangerous_approval", lambda *a, **k: "deny")
+        res = request_tool_approval(
+            "example_write_tool", "creates an order", rule_key="example_write_tool"
+        )
+        assert res["approved"] is False
+        assert "wait for the user to respond" in res["message"]
+
+    def test_gateway_denial_closes_like_a_command_denial(self):
+        action = approval._ACTION_GATE.gateway_refused.format(
+            reason="denied by user", reason_addendum="", timeout_addendum="", breaker=""
+        )
+        command = approval._COMMAND_GATE.gateway_refused.format(
+            reason="denied by user", reason_addendum="", timeout_addendum="", breaker=""
+        )
+        closing = "Stop the current workflow and wait for the user to respond"
+        assert action.startswith("BLOCKED: Action denied by user.")
+        assert closing in command
+        assert closing in action
