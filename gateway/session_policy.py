@@ -991,6 +991,13 @@ def _valid_client_env(value, kind: type = str):
         kind is str or all(isinstance(item, str) for item in v)) for k, v in env.items())
 
 
+def policy_turn_toolsets(authority, policy, config, session_id):
+    """A local turn's toolsets: the policy's current set, plus ``onboarding`` for an onboarding chat
+    (``agent.onboarding_session.onboarding_chat_toolsets``)."""
+    from agent.onboarding_session import onboarding_chat_toolsets
+    return onboarding_chat_toolsets(list(policy.current_toolsets(config)), getattr(authority, 'db', None), session_id)
+
+
 def policy_for_source(runner, source):
     from gateway.session_local import LocalSessionAdapter
     from gateway.config import Platform

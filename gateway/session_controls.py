@@ -230,6 +230,8 @@ class AuthorityConnection:
         handlers.update(connection_handlers(self))
         from gateway.session_control_actions import control
         handlers['session.control'] = partial(control, self)
+        from gateway.session_onboarding import handlers as onboarding_handlers
+        handlers.update(onboarding_handlers(self))
         return handlers
 
     async def dispatch(self, request):
