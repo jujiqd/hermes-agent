@@ -2562,6 +2562,8 @@ export const ruOverrides = {
     ],
     startVoice: 'Начать голосовой разговор',
     openDirective: 'Открыть',
+    previewMarkdown: 'Предпросмотр Markdown',
+    editMarkdown: 'Редактировать Markdown',
     queueMessage: 'Вставить сообщение в очередь',
     steer: 'Направить текущий запуск',
     redirect: 'Перенаправить текущий запуск',
