@@ -35,6 +35,7 @@ from hermes_cli.config import get_hermes_home
 from tools.process_registry_notifications import (
     format_process_notification, heartbeat_output_tail, is_child_process_notification, should_surface_notification)
 from tools.process_registry_checkpoint import ProcessCheckpointMixin
+from tools.process_registry_handles import ProcessHandlesMixin
 from tools.process_registry_output_log import ProcessOutputLogMixin, open_output_log, record_exit_command, worker_output_log
 from tools.process_registry_termination import ProcessTerminationMixin
 from tools.process_registry_results import load_completed_results, save_completed_result
@@ -671,7 +672,7 @@ _WSL_CHAIN_NOTE = (
 )
 
 
-class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin, ProcessOutputLogMixin):
+class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin, ProcessOutputLogMixin, ProcessHandlesMixin):
     """In-memory registry of running and finished background processes.
     Thread-safe: accessed from executor threads (terminal_tool, process handlers),
     the gateway asyncio loop (watchers, reset checks) and the cleanup thread."""
@@ -1572,9 +1573,10 @@ class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin, ProcessOu
         # FD open until FINISHED_TTL_SECONDS elapses, and heavy background
         # churn can exhaust the gateway's FD limit. On the reader-thread path
         # the pipe is already at EOF; on the kill/reconcile paths the reader
-        # may still be draining — its next read raises on the closed stream
-        # and the loop exits, dropping at most the unread tail of a process
-        # that was just killed. poll()/wait()/read_log() serve from the
+        # may still be draining — the pipe stays open until its read ends (the
+        # reader closes it itself; closing it from here would block on the
+        # reader's lock, #142193), dropping at most the unread tail of a
+        # process that was just killed. poll()/wait()/read_log() serve from the
         # buffered ``output_buffer``, never from the pipe.
         try:
             self._publish_finished(session, was_running)
@@ -1614,39 +1616,6 @@ class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin, ProcessOu
             "completion_reason": session.completion_reason,
             "termination_source": session.termination_source,
         }
-
-    def _release_finished_handles(self, session: ProcessSession):
-        """Close a finished session's OS handles (Popen pipes / PTY master).
-
-        Best-effort and idempotent: the session may have no local Popen (env
-        backends, detached recovery), or the handles may already be closed by
-        the reader loop / kill path. Closing a Popen's stream objects does not
-        kill anything — the child has already exited — it only releases the
-        parent's pipe FDs, which is exactly the retained-resource leak.
-        """
-        proc = session.process
-        if proc is not None:
-            for stream in (proc.stdout, proc.stderr, proc.stdin):
-                if stream is not None:
-                    with suppress(OSError, ValueError):  # a stdin flush can hit EPIPE
-                        stream.close()
-        if session._pty is not None:
-            # A live ptyprocess reader sits in a blocking read holding the PTY file
-            # object's buffer lock, and that read only ends once every holder of
-            # the slave side is gone. A descendant that setsid()s past the kill
-            # keeps it open, so close() here would block forever (under _lock on
-            # the prune path). The reader closes the PTY itself via
-            # _finish_reader once its read ends. pywinpty reads don't block, so
-            # Windows closes here as before.
-            reader = session._reader_thread
-            if (not _IS_WINDOWS and reader is not None and reader.is_alive()
-                    and reader is not threading.current_thread()):
-                return
-            # ptyprocess/pywinpty close() is idempotent (``closed`` flag) and
-            # closes the master fd exactly once; it raises only if the child
-            # ignores SIGKILL, which we don't want to surface on the finish path.
-            with suppress(Exception):
-                session._pty.close()
 
     # ----- Query Methods -----
 

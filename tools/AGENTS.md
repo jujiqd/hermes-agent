@@ -122,6 +122,14 @@ teardown, kills the worker cgroup) runs only after that PID kill in `kill()`, or
 proven dead/recycled (`session.exited`, `_signal_kill` recycled-PID path, checkpoint recovery) —
 it is never the first signal a live parent receives.
 
+**A live reader owns its pipe.** `process_registry_handles.py::ProcessHandlesMixin.
+_release_finished_handles` must not close a session's stdout/stderr while its reader thread is
+alive: a buffered stream's `close()` waits for the reader's lock, and the reader holds that lock
+for the whole of its blocking `read()`. Closing from another thread therefore blocks until the
+read ends — on Windows forever, when a descendant inherited the pipe — and that wedged the
+one-shot exit linger, which never expired and never published the completion (#142193). The
+reader closes its own pipe once its read ends.
+
 ## Delegation (`tools/delegate_tool.py`)
 
 Spawns a subagent with isolated context + terminal session; the parent waits for the summary unless
