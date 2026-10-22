@@ -37,6 +37,7 @@ from gateway.session import (
 from gateway.session_transcript import TranscriptReadError
 from gateway.turn_context import TurnContext
 from gateway.turn_lease import DEFAULT_LEASE_WAIT, TurnLeaseTimeoutError
+from gateway.trusted_turn_origin import GatewayOriginTurnMixin
 from hermes_constants import get_hermes_home_override
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -94,6 +95,15 @@ def _bg_prompt_preview(prompt: str, limit: int = 60) -> str:
     """Short single-line quote of a /bg prompt for its failure notice (the task id means nothing to the user)."""
     text = " ".join(str(prompt or "").split())
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+def _proxy_headers(proxy_key: str, session_id: str) -> dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    if proxy_key:
+        headers["Authorization"] = f"Bearer {proxy_key}"
+    if session_id:
+        headers["X-Hermes-Session-Id"] = session_id
+    return headers
 
 
 def is_context_overflow_failure_result(agent_result: dict, history_len: int) -> bool:
@@ -169,9 +179,12 @@ def hygiene_no_commit_reason(agent) -> str:
 from gateway.run_turn_prepare import GatewayTurnPrepareMixin
 from gateway.run_turn_hygiene import GatewayTurnHygieneMixin
 from gateway.run_turn_persistence import GatewayTurnPersistenceMixin
+from gateway.run_turn_tools import GatewayTurnToolsMixin
 
 
-class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, GatewayTurnPersistenceMixin):
+class GatewayTurnMixin(GatewayOriginTurnMixin, GatewayTurnToolsMixin,
+                       GatewayTurnPrepareMixin, GatewayTurnHygieneMixin,
+                       GatewayTurnPersistenceMixin):
     """Agent-turn execution for GatewayRunner (see module docstring)."""
 
 
@@ -266,6 +279,7 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
                 await self._persist_prompt_pins(session_key, _run_start_session_id)
             agent_result = await self._run_agent(
                 message=message_text, context_prompt=prepared.context_prompt, history=history, source=_turn_source,
+                turn_event=event,
                 session_id=_run_start_session_id, session_key=session_key,
                 run_generation=run_generation, event_message_id=self._reply_anchor_for_event(event),
                 inbound_message_id=str(event.message_id) if event.message_id else None,
@@ -454,31 +468,6 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
                 prompt, source, task_id, event_message_id, media_urls, media_types,
             )
 
-    def _resolve_enabled_toolsets_for_source(
-        self, user_config: dict, source: SessionSource, platform_key: str,
-    ) -> list:
-        """Enabled toolsets for an agent run, honoring an adapter ``toolsets_for_source()`` override
-        validated through the SAME ``_get_platform_tools`` path (unknown / platform-restricted
-        toolsets dropped, not trusted)."""
-        from hermes_cli.tools_config import _get_platform_tools
-        try:
-            adapter = self._delivery_adapter_for(source)
-            override = adapter.toolsets_for_source(source) if adapter is not None else None
-        except Exception:
-            override = None
-        if override and isinstance(override, list):
-            pts = dict(user_config.get("platform_toolsets") or {})
-            pts[platform_key] = [str(x) for x in override]
-            user_config = {**user_config, "platform_toolsets": pts}
-        return sorted(_get_platform_tools(user_config, platform_key))
-
-    def _resolve_turn_toolsets(self, user_config: dict, source: SessionSource, platform_key: str):
-        """``(enabled_toolsets, disabled_toolsets)`` for an agent run on ``source``."""
-        from agent.skill_utils import parse_config_string_list
-        enabled = self._resolve_enabled_toolsets_for_source(user_config, source, platform_key)
-        disabled = parse_config_string_list((user_config.get("agent") or {}).get("disabled_toolsets")) or None
-        return enabled, disabled
-
     async def _run_background_task_inner(
         self, prompt: str, source: SessionSource, task_id: str,
         event_message_id: Optional[str] = None, media_urls: Optional[list[str]] = None,
@@ -507,6 +496,7 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
 
             platform_key = _platform_config_key(source.platform)
             enabled_toolsets, disabled_toolsets = self._resolve_turn_toolsets(user_config, source, platform_key)
+            protected_tool_names = self._protected_channel_tool_names(source, disabled_toolsets)
             pr = self._provider_routing
             max_iterations = _current_max_iterations()
             reasoning_config = self._resolve_session_reasoning_config(source=source, model=model)
@@ -555,6 +545,7 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
                     # See #60955.
                     fallback_model=self._refresh_fallback_model(),
                 )
+                agent._protected_channel_tool_names = protected_tool_names
                 try:
                     return agent.run_conversation(user_message=enriched_prompt, task_id=task_id)
                 finally:
@@ -829,6 +820,9 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
 
         Lets a Docker container handle Matrix E2EE while the agent runs on the host with full
         access to local files, memory, skills, and a unified session store."""
+        if self._protected_channel_toolsets(source) is not None:
+            return self._proxy_error_result(
+                "This channel's tool policy cannot be enforced by the remote agent")
         from gateway.run import _GATEWAY_PROXY_SSE_BUFFER_MAX_CHARS
         try:
             from aiohttp import ClientSession as _AioClientSession, ClientTimeout
@@ -869,11 +863,7 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
         ]
         api_messages.append({"role": "user", "content": message})
 
-        headers: dict[str, str] = {"Content-Type": "application/json"}
-        if proxy_key:
-            headers["Authorization"] = f"Bearer {proxy_key}"
-        if session_id:
-            headers["X-Hermes-Session-Id"] = session_id
+        headers = _proxy_headers(proxy_key, session_id)
         body = {"model": "hermes-agent", "messages": api_messages, "stream": True}
 
         _thread_metadata: Optional[dict[str, Any]] = self._thread_metadata_for_source(source, event_message_id)
@@ -990,15 +980,6 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
             "session_id": session_id,
             "response_previewed": _stream_consumer is not None and bool(full_response),
         }
-
-    async def _run_agent(
-        self, message: str, context_prompt: str, history: list[dict[str, Any]],
-        source: SessionSource, session_id: str, **turn_kwargs,
-    ) -> dict[str, Any]:
-        """Profile-scoping wrapper around ``_run_agent_inner`` (same keyword parameters; pass-through
-        when multiplexing is off)."""
-        with self._profile_scope_for_source(source):
-            return await self._run_agent_inner(message, context_prompt, history, source, session_id, **turn_kwargs)
 
     def _run_agent_display_settings(self, source: SessionSource) -> GatewayRunner._RunAgentDisplay:
         """Resolve per-platform display, progress, status and streaming-surface settings for a turn."""
@@ -1964,6 +1945,7 @@ class GatewayTurnMixin(GatewayTurnPrepareMixin, GatewayTurnHygieneMixin, Gateway
 
             followup_result = await self._run_agent(
                 message=next_message, context_prompt=turn_ctx.context_prompt, history=updated_history,
+                turn_event=pending_event,
                 source=next_source, session_id=session_id, session_key=next_session_key,
                 run_generation=run_generation, _interrupt_depth=_interrupt_depth + 1,
                 event_message_id=next_message_id, inbound_message_id=next_inbound_id,

@@ -957,7 +957,7 @@ _EXTRA_KNOWN_ROOT_KEYS = {
     # Top-level forms read/bridged by gateway/config.py:
     "group_sessions_per_user", "thread_sessions_per_user",
     "stt_echo_transcripts", "reset_triggers", "always_log_local", "filter_silence_narration",
-    "multiplex_profiles", "profile_routes", "platforms", "require_mention",
+    "multiplex_profiles", "profile_routes", "protected_channel_toolsets", "platforms", "require_mention",
     "unauthorized_dm_behavior", "signal", "allow_all_users",
     "timeouts",          # unified timeout resolution section (agent/deadline.py)
 }
@@ -3250,7 +3250,7 @@ _KNOWN_CONTAINER_TYPES = {
     # Omitted from DEFAULT_CONFIG on purpose (an empty default would clobber a user allow-list),
     # so without these rows `config set plugins.enabled foo` stored a string every reader ignored.
     "plugins.enabled": "list",
-    "plugins.disabled": "list",
+    "plugins.disabled": "list", "plugins.update_guards": "list",
     "model_catalog.excluded_providers": "list",
 }
 # List slots whose readers go through ``parse_config_string_list``: a bare name is one entry.

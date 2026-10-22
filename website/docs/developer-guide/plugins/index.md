@@ -227,6 +227,69 @@ explicit supported subset, not a claim of full Agent Plugins conformance.
 
 ## Native plugin compatibility contract
 
+### Required source update checks
+
+An installed native plugin may declare a relative Python script in `plugin.yaml`:
+
+```yaml
+name: my-plugin
+post_update_check: checks/source_compat.py
+```
+
+Hermes runs a declared check when the plugin is installed and enabled. The
+script receives `--hermes-root PATH --profile NAME --phase source|runtime`.
+The `source` phase runs after the checkout move under the old interpreter,
+before dependency sync; keep it compatible with the old runtime and do not
+require live credentials. The `runtime` phase runs under the newly selected
+interpreter after dependency sync and can exercise an isolated behavioral
+fixture. Both phases must exit zero within 30 seconds. For a
+profile that must keep the plugin available, also list it under
+`plugins.update_guards` in that profile's `config.yaml`. The profile-owned
+list survives an updated checkout and makes a missing, disabled, or damaged
+checker an update refusal rather than silently dropping the requirement. A
+shared source update examines the default and every installed named profile,
+including standalone and parked profiles.
+
+A same-revision `hermes update` runs the check again before dependency repair.
+If an earlier update left admission pending, a retry may add guards but cannot
+remove or replace any guard recorded by that pending update. It must verify
+all earlier and new guards before clearing the startup hold.
+During dependency preparation, a plugin named in `plugins.update_guards` cannot
+be automatically disabled or left out because its Python, manifest, Hermes
+version, build, or dependency requirements no longer fit. PM records a failed
+sync rather than publishing a smaller selection. The check runs again under the
+newly selected Python before the completion process may restart a paused gateway.
+Until that selected-runtime check passes, a durable install-scoped marker keeps
+paused gateways and new gateway launches stopped. An incomplete check after the source revision changed
+is reported as a partial update with exit 1 and an owed dependency follow-up:
+the source has changed, but the gateway is not ready. Retry `hermes update` after
+fixing the dependency or restore both source and environment from a tested backup.
+Automatic source-and-environment rollback is not provided at that stage.
+If a later update attempt rolls back to the still-unadmitted revision, the
+original marker remains; only a return to the source revision and dependency
+selection it started from, or a successful selected-runtime check, removes it.
+An interruption before source movement can also leave the conservative marker
+on the old revision. Rerun
+`hermes update` to complete admission before starting its gateway.
+
+During a Git source update Hermes runs each required script with
+`--hermes-root <pulled-checkout>` and `--profile <name>` after the checkout move
+but before dependency changes or gateway restart. Exit zero admits the update;
+any nonzero exit, missing script, or 30-second timeout refuses it. Hermes
+restores the previous source revision through its verified rollback path and
+resumes the paused gateway fleet on that revision. The script receives a
+temporary `HERMES_HOME`, no stdin, and no inherited credential environment.
+It should inspect the source contract with only the currently installed Python
+standard library and packages; it cannot rely on the target's new dependencies
+being installed yet. Its second invocation uses the selected Python and can check
+that the target API and dependencies import together. The script is trusted installed
+plugin code, not a sandbox
+for an adversarial plugin. On the ZIP update path, guarded installations refuse
+the update before download because that path cannot offer this rollback point.
+Normal plugins need no update check. Installations that require uninterrupted
+plugin service should verify the new source and dependency environment in a
+separate checkout before updating their running installation.
+
 Native `plugin.yaml` plus `register(ctx)` plugins are protected by behavior,
 not by one global plugin API number. Hermes does not expose a
 `PLUGIN_API_VERSION`, require a manifest-wide `api:` match, or attach an API
@@ -269,6 +332,32 @@ whenever the internals move, and it collides with every other plugin patching
 the same seam. The plugin catalog refuses it at admission (`hermes plugins
 validate`, `no core override` check). If a public hook you need is missing,
 open an issue describing it.
+
+### Admitted gateway turn origin
+
+An inbound integration may register one origin projector per platform and profile with
+`ctx.register_inbound_origin_projector(platform="slack", capture=..., validate=...)`.
+`capture(event)` returns a small JSON object or `None`; `validate(claim, source)`
+checks that object's identity against the gateway's `SessionSource`. Hermes freezes
+the projection before native admission yields, limits it to 16 KiB, stores it in
+the native admission, and revalidates it after recovery. It never persists the
+platform SDK event. An unavailable or changed projector refuses a claimed row;
+older rows without a projection do not acquire one on replay.
+
+Plugin-owned tools can call `gateway.trusted_turn_origin.current_origin()` to
+read an immutable `TrustedTurnOrigin` for the executing human turn. The claim is
+available as `origin.claims[plugin_id]`; absent claims grant nothing. The origin
+also carries the gateway's platform, runtime `profile`, receiving
+`transport_profile`, workspace, channel, user, message and thread identifiers.
+The transport is derived from pinned ingress identity or verified native
+provenance; it is `None` if that proof is unavailable. Queued human follow-ups
+rebind it to their own sender; internal and eventless turns expose `None`.
+`admission_id` is optional, since a
+queued follow-up need not have a separate native admission. Plugins should use
+the `TRUSTED_TURN_ORIGIN_API_VERSION` constant for this contract's version.
+
+This API supplies origin evidence to plugin tools. It does not restrict other
+tools or enforce a channel's tool policy; those need a separate execution gate.
 
 ### Deprecation policy
 
