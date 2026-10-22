@@ -27218,6 +27218,11 @@
           "subdir": {
             "title": "Subdir",
             "type": "string"
+          },
+          "tier": {
+            "default": "community",
+            "title": "Tier",
+            "type": "string"
           }
         },
         "required": [
