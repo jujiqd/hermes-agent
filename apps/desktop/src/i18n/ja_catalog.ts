@@ -29,6 +29,7 @@ export const jaCatalog = {
     'インストール先が変更されました。このダイアログを閉じ、インストールリンクを開き直してください。',
   installed: 'インストール済み',
   searchSkills: 'スキルを検索',
+  showCommunity: 'コミュニティレジストリを表示',
   searchPlugins: 'プラグインを検索',
   allSources: 'すべての提供元',
   allCategories: 'すべてのカテゴリ',

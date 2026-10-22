@@ -27,6 +27,7 @@ export const zhCatalog = {
   destinationChanged: '安装目标已更改。请关闭此对话框并重新打开安装链接。',
   installed: '已安装',
   searchSkills: '搜索技能',
+  showCommunity: '显示社区注册表',
   searchPlugins: '搜索插件',
   allSources: '所有来源',
   allCategories: '所有分类',

@@ -34,6 +34,7 @@ export const ruCatalog = {
   destinationChanged: 'Место установки изменилось. Закройте диалог и снова откройте ссылку установки.',
   installed: 'Установленные',
   searchSkills: 'Поиск навыков',
+  showCommunity: 'Показать реестры сообщества',
   searchPlugins: 'Поиск плагинов',
   allSources: 'Все источники',
   allCategories: 'Все категории',

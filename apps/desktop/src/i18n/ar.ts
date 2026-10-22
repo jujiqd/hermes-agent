@@ -41,6 +41,7 @@ export const arOverrides = {
     destinationChanged: 'تغيرت وجهة التثبيت. أغلق هذا الحوار وافتح رابط التثبيت مجددًا.',
     installed: 'المثبتة',
     searchSkills: 'البحث في المهارات',
+    showCommunity: 'إظهار سجلات المجتمع',
     searchPlugins: 'البحث في الإضافات',
     allSources: 'كل المصادر',
     allCategories: 'كل الفئات',

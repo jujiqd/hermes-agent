@@ -27,6 +27,7 @@ export const enCatalog: CatalogTranslations = {
   destinationChanged: 'The destination changed. Close this dialog and open the install link again.',
   installed: 'Installed',
   searchSkills: 'Search skills',
+  showCommunity: 'Show community registries',
   searchPlugins: 'Search plugins',
   allSources: 'All sources',
   allCategories: 'All categories',

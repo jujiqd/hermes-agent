@@ -25,6 +25,7 @@ export interface CatalogTranslations {
   destinationChanged: string
   installed: string
   searchSkills: string
+  showCommunity: string
   searchPlugins: string
   allSources: string
   allCategories: string
