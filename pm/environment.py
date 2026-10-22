@@ -8,7 +8,7 @@ from __future__ import annotations
 import codecs
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import io
 import os
 from pathlib import Path
@@ -272,7 +272,7 @@ def managed_environment(destination: Path, *, python: Path | None = None,
 
 
 @contextmanager
-def _fresh_build(environment: PythonEnvironment, *, sealed: bool) -> Iterator[None]:
+def _fresh_build(environment: PythonEnvironment, *, sealed: bool, lock: Path | None = None) -> Iterator[None]:
     """Own only the output claimed by this build, including failed validation."""
     out = environment.destination
     # A concurrent creator wins intact: never enter cleanup before mkdir succeeds.
@@ -280,7 +280,7 @@ def _fresh_build(environment: PythonEnvironment, *, sealed: bool) -> Iterator[No
     try:
         environment.create()
         yield
-        environment.check()
+        environment.check(lock)
         if sealed:
             prune_site_pth(out)
     except BaseException:
@@ -476,7 +476,7 @@ class PythonEnvironment:
         requirements = source / "requirements.txt"
         self.export_requirements(source, requirements, timeout=timeout)
         self._install_requirements_file(requirements, wheelhouse=wheelhouse, timeout=timeout)
-        self.check()
+        self.check(source / "uv.lock")
 
     def prune_cache(self, *, ci: bool = False) -> None:
         command = ["cache", "prune", "--no-config"]
@@ -486,10 +486,22 @@ class PythonEnvironment:
         if result.returncode:
             raise InstallError("uv", f"cache pruning failed: {result.stderr[-600:]}")
 
-    def check(self) -> None:
-        result = self._run(
+    def check(self, lock: Path | None = None) -> None:
+        """`uv pip check` the environment; *lock* is the uv.lock it was installed from.
+
+        Mismatches the lock's manifest overrides account for are expected (pm.pip_check).
+        The check is a quiet step, so it runs captured even for a streaming environment:
+        a streamed run keeps only the output's tail, which can drop the report's head.
+        """
+        result = replace(self, output=None)._run(
             ["pip", "check", "--no-config", "--python", str(self.executable)],
             cwd=self.destination.parent, timeout=60,
         )
-        if result.returncode:
+        if not result.returncode:
+            return
+        from pm.pip_check import unexpected_incompatibilities
+        unexpected = unexpected_incompatibilities(f"{result.stdout or ''}\n{result.stderr or ''}", lock)
+        if unexpected is None:
             raise InstallError("venv", f"dependency validation failed: {result.stderr[-600:]}")
+        if unexpected:
+            raise InstallError("venv", "dependency validation failed: " + "\n".join(unexpected)[-600:])
