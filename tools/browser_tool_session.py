@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from hermes_cli._subprocess_compat import windows_hide_flags
+from hermes_cli.process_identity import spawn_env
 from hermes_constants import hermes_home_key
 from tools.browser_tool_origin import origin as _bt
 from tools import browser_tool_cdp as _cdp
@@ -189,6 +190,9 @@ def _agent_browser_command_env(socket_dir: str) -> dict[str, str]:
     if executable:
         env["AGENT_BROWSER_EXECUTABLE_PATH"] = executable
     env["AGENT_BROWSER_SOCKET_DIR"] = socket_dir
+    # The daemon a command forks inherits this tag: it is how _own_local_daemon tells a daemon this
+    # process started from one another Hermes started in a shared session.
+    env.update(spawn_env("agent-browser-daemon"))
     if "AGENT_BROWSER_IDLE_TIMEOUT_MS" not in env:
         env["AGENT_BROWSER_IDLE_TIMEOUT_MS"] = str(_daemon_idle_timeout_seconds() * 1000)
     return env
@@ -964,6 +968,9 @@ def _run_browser_command(
         # the same way and retry once on the replacement before handing the caller the error.
         # ``close`` is exempt: a dead daemon is already closed, and cleanup must never spawn
         # a fresh session just to close it.
+        if command != "close" and (session_info.get("features") or {}).get("local") \
+                and not session_info.get("cdp_url") and not session_info.get("bb_session_id"):
+            _lifecycle._own_local_daemon(session_info.get("session_name", ""))
         if attempt == 0 and command != "close" and _is_recoverable_local_backend_failure(session_info, result):
             _bt.logger.warning("browser '%s' failed at the backend level (task=%s, rc=%s); recycling the session "
                                "and retrying once", command, task_id, result.get("returncode"))

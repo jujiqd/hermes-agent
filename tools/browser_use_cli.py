@@ -20,8 +20,10 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional
 
+from hermes_cli.process_identity import (
+    own_process_groups, register_child, release_process_group_once_empty, spawn_env, spawned_by_this_process)
 from hermes_constants import get_hermes_home, hermes_home_key
-from tools.browser_harness_dirs import daemon_env, daemon_identity, namespace_harness_dirs
+from tools.browser_harness_dirs import daemon_env, daemon_identity, harness_pid_file, namespace_harness_dirs
 from utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
@@ -180,6 +182,8 @@ def _base_subprocess_env() -> dict:
     env["PATH"] = _floor_subprocess_path(env.get("PATH", ""))
     env.setdefault("ANONYMIZED_TELEMETRY", "false")
     namespace_harness_dirs(env, _served_profile_tag())  # a served profile's own harness runtime/tmp dirs
+    # A daemon the CLI starts inherits this tag; _own_harness_daemon owns only one that names us.
+    env.update(spawn_env("browser-harness-daemon"))
     return env
 
 
@@ -642,6 +646,7 @@ def _group_popen_kwargs() -> dict:
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         return {"creationflags": windows_hide_flags() | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
                 "startupinfo": si}
+    # detached-spawn: ok — awaited CLI; a timeout kills its whole group (_run_cli_killing_process_group)
     return _quiet(_flags, {}, "Windows hide-flags unavailable") if os.name == "nt" else {"start_new_session": True}
 
 
@@ -717,6 +722,18 @@ def stop_harness_daemons(home_key: Optional[str] = None) -> None:
     _reload_daemons(daemons)
 
 
+def stop_owned_harness_daemons() -> None:
+    """Stop only the harness daemons this process owns (``_owned_daemon_groups``: started by its own
+    commands). The exit path uses this: a daemon another live Hermes started on the same name was
+    driven here too, but it is that Hermes's to stop."""
+    with _owned_daemon_groups_lock:
+        owned = sorted(_owned_daemon_groups)
+    with _driven_daemons_lock:
+        for key in owned:
+            _driven_daemons.pop(key, None)
+    _reload_daemons(owned)
+
+
 def _reload_daemons(daemons) -> None:  # each ``daemon_identity`` daemon, with its own dirs
     cmd = _find_cli() if daemons else None
     if not cmd:
@@ -725,6 +742,57 @@ def _reload_daemons(daemons) -> None:  # each ``daemon_identity`` daemon, with i
     for daemon in daemons:
         with contextlib.suppress(OSError, subprocess.SubprocessError):
             _run_cli_killing_process_group([*cmd, "--reload"], "", daemon_env(env, daemon), 15)
+        with _owned_daemon_groups_lock:
+            pgid = _owned_daemon_groups.pop(daemon, None)
+        if pgid is not None:
+            release_process_group_once_empty(pgid)  # a daemon --reload failed to stop stays covered
+
+
+# Daemon identity (``daemon_identity``: its dirs + BU_NAME) -> process group of the harness daemon this
+# process owns. The harness starts its daemon with start_new_session so it outlives each CLI call (that
+# is how a session persists across browser_exec calls), which also means it outlives a SIGKILLed or
+# OOM-killed Hermes forever (#121095). Its group goes to this process's owner-death supervisor, so it
+# dies with us however we die.
+_owned_daemon_groups: dict[tuple[str, ...], int] = {}
+_owned_daemon_groups_lock = threading.Lock()
+
+
+def _own_harness_daemon(env: dict) -> None:
+    """Hand the daemon behind ``env``'s BU_NAME to the owner-death supervisor.
+
+    The harness publishes its daemon pid in its runtime dir (``harness_pid_file``: JSON
+    ``{"pid", "started"}`` or a bare pid). The daemon is accepted only while it is this user's live
+    ``browser_harness.daemon`` leading its own session and its spawn tag names this process, so a
+    stale or planted pid file, or a daemon another Hermes started, never reaches the supervisor.
+    Runs after every browser_exec: a pid already owned for this daemon costs one file read."""
+    if os.name != "posix":
+        return  # Windows: the harness daemon is outside this process's job; nothing to register.
+    import psutil
+
+    daemon = daemon_identity(env)
+    try:
+        raw = harness_pid_file(env).read_text(encoding="utf-8-sig").strip()
+        pid = int(json.loads(raw)["pid"]) if raw.startswith("{") else int(raw.split()[0])
+        with _owned_daemon_groups_lock:
+            if _owned_daemon_groups.get(daemon) == pid:
+                return
+        proc = psutil.Process(pid)
+        argv = proc.cmdline()
+        if (os.getsid(pid) != pid or proc.uids().real != os.getuid()  # windows-footgun: ok — posix-only, returned above
+                or argv[argv.index("-m") + 1] != "browser_harness.daemon"):
+            return
+        if not spawned_by_this_process(pid):
+            return  # another Hermes on the same BU_NAME started it: that Hermes owns it
+    except (OSError, ValueError, KeyError, TypeError, IndexError, psutil.Error) as exc:
+        logger.debug("browser_exec: no harness daemon to supervise for %s: %s", daemon[-1], exc)
+        return
+    with _owned_daemon_groups_lock:
+        replaced = _owned_daemon_groups.get(daemon)
+        _owned_daemon_groups[daemon] = pid
+    own_process_groups([pid])
+    register_child(pid, "browser-harness-daemon")
+    if replaced is not None:
+        release_process_group_once_empty(replaced, timeout=0)  # the daemon it replaced; a survivor stays covered
 
 
 def _route_exec(env: dict, session: str, task_id: Optional[str], local: bool, local_sidecar: bool,
@@ -849,6 +917,7 @@ def browser_exec(code: str, session: str = "", timeout_s: int = _DEFAULT_TIMEOUT
     else:
         dispatched = dispatch()
     _reload_if_republished(env, generation)
+    _own_harness_daemon(env)
     if "proc" not in dispatched:
         if "error_result" in dispatched:
             return dispatched["error_result"]
