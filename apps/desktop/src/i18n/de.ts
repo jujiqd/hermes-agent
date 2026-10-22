@@ -3711,7 +3711,9 @@ export const deOverrides = {
     },
     statusDivider: {
       working: 'In Arbeit',
-      done: 'Erledigt'
+      blocked: 'Blockiert',
+      ready: 'Bereit',
+      inactive: 'Inaktiv'
     },
     markAllRead: 'Alle als gelesen markieren'
   },
