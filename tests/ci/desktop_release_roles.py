@@ -23,7 +23,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "desktop-bundled-release.yml"
 SMOKE_WORKFLOW = "./.github/workflows/desktop-bundle-smoke.yml"
 BUILD_CACHE_ACTION = "./.github/actions/desktop-build-cache"
 SHA = "a" * 40
-CANARY_TAG = "v0.28.0+canary.20260818T101010Z"
+CANARY_TAG = "canary.20260818T101010Z-v0.28.0"
 PLATFORMS = ("darwin", "win32")
 ARCHES = ("arm64", "x64")
 NATIVE_TARGETS = tuple(f"{platform}-{arch}" for platform in PLATFORMS for arch in ARCHES)
@@ -221,6 +221,7 @@ def evaluate(expression, inputs, needs, *, cancelled=False, failed=False, job_if
         'always': lambda: True, 'cancelled': lambda: cancelled,
         'success': lambda: not (cancelled or failed), 'failure': lambda: failed,
         'contains': lambda value, needle: needle in value,
+        'startsWith': lambda value, prefix: str(value).startswith(prefix),
         # Expression strings reach eval already rewritten (true -> True), so read them as literals.
         'fromJSON': ast.literal_eval,
     })

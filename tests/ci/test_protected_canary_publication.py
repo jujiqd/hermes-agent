@@ -37,6 +37,12 @@ def canary_job():
     return jobs[canary_publisher(jobs)]
 
 
+
+def _version(tag: str) -> str:
+    """The version a fixture tag's packages carry (empty for a tagless commit build)."""
+    from hermes_cli.update_channel import release_version
+
+    return release_version(tag) or ""
 def stage_script(target, mode):
     """The tag/commit receipt stage of the native build leg for *target*."""
     jobs = workflow_jobs()
@@ -51,7 +57,7 @@ def step_script(job, name):
 def canary(tmp_path, r2_server, monkeypatch):
     _, clone = _seed_repo(tmp_path)
     commit = _git("rev-parse", "HEAD", cwd=clone)
-    tag = "v0.1.2+canary.20260913T001000Z"
+    tag = "canary.20260913T001000Z-v0.1.2"
     _git("tag", "-a", tag, "-m", '{"schema":1}', cwd=clone)
     tag_object = _git("rev-parse", f"{tag}^{{tag}}", cwd=clone)
     _git("push", "origin", tag, cwd=clone)
@@ -118,10 +124,10 @@ def canary(tmp_path, r2_server, monkeypatch):
 
 def native_leg(root, identity, env, platform, arch):
     root.mkdir(parents=True, exist_ok=True)
-    version = env["RELEASE_TAG"][1:]
+    version = _version(env["RELEASE_TAG"])
     stamp = {
         "tag": env["RELEASE_TAG"], "commit": env["RELEASE_COMMIT"],
-        "baseVersion": env["RELEASE_TAG"][1:],
+        "baseVersion": _version(env["RELEASE_TAG"]),
     }
     artifact = identity["artifactNamePascal"]
     if platform == "win32":
@@ -172,7 +178,7 @@ def test_canary_metadata_is_recorded_and_receipt_bound(canary, r2_server, platfo
     metadata = json.loads(body)
     assert entry["sha256"] == hashlib.sha256(body).hexdigest()
     assert metadata["commit"] == env["RELEASE_COMMIT"] and metadata["tag"] == env["RELEASE_TAG"]
-    assert metadata["version"] == (env["FIXTURE_WINDOWS_VERSION"] if platform == "win32" else env["RELEASE_TAG"][1:])
+    assert metadata["version"] == (env["FIXTURE_WINDOWS_VERSION"] if platform == "win32" else _version(env["RELEASE_TAG"]))
 
 
 def stage_canary(clone, identity, env, run):
@@ -283,7 +289,7 @@ def test_published_canary_workflow_advances_only_after_every_gate(canary, r2_ser
     assert r2_server.store == after
     # A later canary really advances the existing head and native quad, rather
     # than merely succeeding at the empty-channel bootstrap case.
-    newer_tag = "v0.1.2+canary.20260913T001100Z"
+    newer_tag = "canary.20260913T001100Z-v0.1.2"
     _git("tag", "-a", newer_tag, "-m", '{"schema":1}', cwd=clone)
     newer_object = _git("rev-parse", f"{newer_tag}^{{tag}}", cwd=clone)
     _git("push", "origin", newer_tag, cwd=clone)
