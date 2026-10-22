@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { type ReactElement, type ReactNode, useState } from 'react'
+import { type ReactElement, type ReactNode } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,27 @@ function retirementStatus(
     tone: 'error',
     line: u.discontinuedTitle,
     error: u.discontinuedBody
+  }
+}
+
+/**
+ * The headline for a failed check. The transport error codes are internal; each one
+ * names a different cause, and "we couldn't reach the update server" is only true
+ * for the ones that are actually about reaching a server.
+ */
+function errorHeadline(error: string, u: Translations['updates']): string {
+  switch (error) {
+    case 'branch-local-only':
+      return u.unpublishedBranchTitle
+
+    case 'head-unavailable':
+      return u.cantReadRevision
+
+    case 'release-unavailable':
+      return u.cantResolveChannel
+
+    default:
+      return u.cantReach
   }
 }
 
@@ -126,8 +147,10 @@ function ordinaryUpdateStatus({
   if (status?.error) {
     return {
       applying,
-      error: [status.message, status.error].filter(l => !!l).join('\n'),
-      line: u.cantReach,
+      // The human message only: the transport code is an internal detail and reads
+      // as noise next to the sentence that explains the failure.
+      error: status.message,
+      line: errorHeadline(status.error, u),
       supported,
       tone: 'error',
       updateAvailable
@@ -318,7 +341,6 @@ export function UpdateStatusCard({
   const status = useStore(isBackend ? $backendUpdateStatus : $updateStatus)
   const checking = useStore(isBackend ? $backendUpdateChecking : $updateChecking)
   const apply = useStore(isBackend ? $backendUpdateApply : $updateApply)
-  const [justChecked, setJustChecked] = useState<boolean>(false)
 
   const view = deriveUpdateStatus({
     apply,
@@ -331,9 +353,7 @@ export function UpdateStatusCard({
   })
 
   const handleCheck = async (): Promise<void> => {
-    setJustChecked(false)
-    const next = await (isBackend ? checkBackendUpdates({ force: true }) : checkUpdates({ force: true }))
-    setJustChecked(Boolean(next))
+    await (isBackend ? checkBackendUpdates({ force: true }) : checkUpdates({ force: true }))
   }
 
   return (
@@ -354,10 +374,14 @@ export function UpdateStatusCard({
         <div className="min-w-0">
           <p className="font-medium">{view.line}</p>
           {view.error && <p className="mt-1 text-xs text-muted-foreground">{view.error}</p>}
+          {/* A check that succeeded can still carry a note: a parked branch the remote
+              never received, a channel that resolved to a retired record. */}
+          {!view.error && view.tone !== 'unsupported' && status?.message && (
+            <p className="mt-1 text-xs text-muted-foreground">{status.message}</p>
+          )}
           {view.tone !== 'unsupported' && (
             <p className="mt-1 text-xs text-muted-foreground">
               {u.lastChecked(relativeTime(status?.fetchedAt, u))}
-              {justChecked && !checking ? u.justNowSuffix : ''}
             </p>
           )}
         </div>
