@@ -3989,6 +3989,7 @@ catalog: CatalogTranslations
       alwaysTitle: string
       alwaysDescription: (pattern: string) => string
       alwaysAllow: string
+      smartUnavailable: (reason: string) => string
     }
     clarify: ClarifyCopy
     themePicker: ThemePickerCopy
