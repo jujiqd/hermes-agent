@@ -46,7 +46,7 @@ def _wire_browser_exec(monkeypatch, run_cli):
     from tools import browser_use_cli as browser_use
 
     monkeypatch.setattr(browser_use, "_find_cli", lambda: ["browser-use"])
-    monkeypatch.setattr(browser_use, "_base_subprocess_env", dict)
+    monkeypatch.setattr(browser_use, "_base_subprocess_env", lambda **kwargs: {})
     monkeypatch.setattr(browser_use, "_real_profile_consented", lambda: False)
     monkeypatch.setattr(browser_use, "_resolve_lightpanda_cdp", lambda *a: None)
     monkeypatch.setattr("tools.browser_tool_cdp._get_cdp_override", lambda: "")
