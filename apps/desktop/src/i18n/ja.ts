@@ -1,3 +1,4 @@
+// health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
@@ -236,6 +237,36 @@ export const jaOverrides = {
   },
 
   settings: {
+    // Window plans (Nous subscription with included usage). Other billing strings: overlay-gaps.json.
+    billing: {
+      keepGoingOnCredits: {
+        title: 'クレジットで続行',
+        description: '含まれる利用量を使い切ったらクレジットを使います。オフ: Hermes はリセットを待ちます。',
+        approveInBrowser: '変更するにはブラウザでリモート支出を承認してください。承認するとすぐに適用されます。',
+        openAgain: 'もう一度開く',
+        cancel: 'キャンセル',
+        approvedRetry: 'リモート支出は承認されましたが、変更を保存できませんでした。',
+        tryAgain: '再試行'
+      },
+      state: {
+        usage: {
+          window: {
+            today: '今日',
+            week: '今週',
+            month: '今月',
+            topTier: '大型モデル（月間）',
+            barLabel: title => `${title}の含まれる利用量の使用率`,
+            captionPaused: '一時停止中: サブスクリプションの支払いに失敗しました',
+            captionPausedOther: '一時停止中: ポータルの請求をご確認ください',
+            captionTopTierUsedUp: '月間の枠を使い切りました。残りはクレジットで支払われます',
+            captionTopTierUsedUpKeepGoingOff: '月間の枠を使い切りました。他の含まれるモデルは引き続き使えます',
+            captionResetsIn: duration => `${duration}後にリセット`,
+            captionIncluded: '含まれる利用量',
+            valueUsed: percent => `${percent} 使用`
+          }
+        }
+      }
+    },
     uninstallSection: {
       dangerZone: '危険ゾーン',
       checkingInstalled: 'インストール内容を確認中…',
@@ -2866,7 +2897,27 @@ export const jaOverrides = {
     wasPrice: '旧価格',
     customModel: 'カスタムモデル',
     addCustomModelAction: 'カスタムモデルを追加…',
-    customModelPlaceholder: 'モデル ID を入力（例: openai/gpt-5）'
+    customModelPlaceholder: 'モデル ID を入力（例: openai/gpt-5）',
+    today: '今日',
+    week: '今週',
+    month: '今月',
+    topTier: '大型モデル（月間）',
+    included: '以下のモデルはすべて含まれます',
+    pausedRenewal: '一時停止: 未払い',
+    pausedOther: '一時停止',
+    includedUsedUp: '含まれる利用量を使い切りました',
+    limitReached: name => `${name}の上限に達しました`,
+    limitNames: { day: '1日', month: '月間', top_tier: '大型モデルの月間', week: '週間' },
+    limitThenCredits: '有料モデルはクレジットを使用中（従量課金）',
+    limitThenCreditsLarge: '大型モデルはクレジットを使用中（従量課金）',
+    limitThenWait: 'それまでは無料モデルのみ',
+    limitThenWaitLarge: 'それまで大型モデルは一時停止',
+    percentUsed: percent => `${percent} 使用済み`,
+    resetsIn: duration => `${duration}後にリセット`,
+    usageLevels: { free: '無料', top_tier: '大' },
+    sectionRecommended: 'おすすめ',
+    sectionOther: 'その他のモデル',
+    largeFootnote: '大型モデルは大型モデルの月間上限も消費します。'
   },
 
   modelVisibility: {
@@ -3371,6 +3422,10 @@ export const jaOverrides = {
         cron_session_read_only: {
           title: 'このチャットはスケジュールされたジョブ用です',
           body: 'このチャットはそのジョブの実行専用のため、メッセージは実行されませんでした。送信するには新しいチャットを開始してください。'
+        },
+        usage_window: {
+          title: '含まれる利用量を使い切りました',
+          body: 'プランに含まれる利用量はリセットまで使い切りました。続けるには /topup でクレジットを追加してください。'
         }
       },
       errorLayers: {
@@ -3385,6 +3440,12 @@ export const jaOverrides = {
         streaming: 'ストリーミング接続のエラー'
       },
       errorRetry: '再試行',
+      errorSwitchToModel: (model, note) => (note ? `${model} に切り替え（${note}）` : `${model} に切り替え`),
+      errorSwitchModelFailed: 'モデルを切り替えられませんでした',
+      errorUseCredits: 'クレジットで続行を有効にする',
+      errorUseCreditsFailed: 'クレジットで続行を有効にできませんでした',
+      errorAddCredits: 'クレジットを追加',
+      errorOpenBillingSettings: '請求設定を開く',
       errorLimitResets: time => `制限は ${time} にリセットされます`,
       errorRetryAtReset: time => `制限のリセット時に再試行（${time}）`,
       errorRetryScheduled: (time, wait) => `${time} に再試行 — 残り ${wait}`,

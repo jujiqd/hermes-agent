@@ -1,3 +1,4 @@
+// health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { FIELD_DESCRIPTIONS, FIELD_LABELS } from '@/app/settings/constants'
 
 import { enAppTour } from './en_app_tour'
@@ -1690,6 +1691,16 @@ export const en: Translations = {
         effectScheduled: (targetName, effectiveAt, creditsDelta) =>
           `Change to ${targetName} — takes effect ${effectiveAt}. No charge now; you keep your current plan until then.${creditsDelta ? ` Monthly credits change: ${creditsDelta}.` : ''}`
       },
+      keepGoingOnCredits: {
+        title: 'Keep going on credits',
+        description:
+          'Use your credits when included usage runs out. Off: Hermes waits for the reset.',
+        approveInBrowser: 'Approve Remote Spending in your browser to change this. It applies as soon as you approve.',
+        openAgain: 'Open again',
+        cancel: 'Cancel',
+        approvedRetry: 'Remote Spending is approved, but the change didn\'t save.',
+        tryAgain: 'Try again'
+      },
       autoReload: {
         threshold: 'Threshold',
         thresholdAria: 'Auto-refill threshold',
@@ -1767,7 +1778,21 @@ export const en: Translations = {
             captionDefault: 'Default ceiling',
             captionSpending: 'Monthly remote spending',
             valueUsed: (spent, limit) => `${spent} of ${limit} used`
-          }
+          },
+          window: {
+            today: 'Today',
+            week: 'This week',
+            month: 'This month',
+            topTier: 'Large models (monthly)',
+            barLabel: title => `${title} included usage used`,
+            captionPaused: 'Paused: subscription payment failed',
+            captionPausedOther: 'Paused: see Billing in the Portal',
+            captionTopTierUsedUp: 'Monthly allowance used up, credits cover the rest',
+            captionTopTierUsedUpKeepGoingOff: 'Monthly allowance used up, other included models still work',
+            captionResetsIn: duration => `Resets in ${duration}`,
+            captionIncluded: 'Included usage',
+            valueUsed: percent => `${percent} used`
+          },
         },
         planCard: {
           freeTier: 'Free',
@@ -4005,7 +4030,27 @@ export const en: Translations = {
     wasPrice: 'was',
     customModel: 'Custom model',
     addCustomModelAction: 'Add custom model…',
-    customModelPlaceholder: 'Type a model id, e.g. openai/gpt-5'
+    customModelPlaceholder: 'Type a model id, e.g. openai/gpt-5',
+    today: 'Today',
+    week: 'Week',
+    month: 'Month',
+    topTier: 'Large models (monthly)',
+    included: 'Every model below is included',
+    pausedRenewal: 'paused: renewal unpaid',
+    pausedOther: 'paused',
+    includedUsedUp: 'Included usage used up',
+    limitReached: name => `${name.charAt(0).toUpperCase()}${name.slice(1)} limit reached`,
+    limitNames: { day: 'daily', month: 'monthly', top_tier: 'monthly large-model', week: 'weekly' },
+    limitThenCredits: 'paid models now use your credits (pay as you go)',
+    limitThenCreditsLarge: 'Large models now use your credits (pay as you go)',
+    limitThenWait: 'only Free models until then',
+    limitThenWaitLarge: 'Large models paused until then',
+    percentUsed: percent => `${percent} used`,
+    resetsIn: duration => `resets in ${duration}`,
+    usageLevels: { free: 'Free', top_tier: 'Large' },
+    sectionRecommended: 'Recommended',
+    sectionOther: 'Other models',
+    largeFootnote: 'Large models also use your monthly large-model limit.'
   },
 
   modelVisibility: {
@@ -4124,6 +4169,9 @@ export const en: Translations = {
       toggleWorkspace: 'Workspace',
       cacheHitRateTitle: 'Prompt cache hit rate this session — cached tokens cost less, so higher is cheaper',
       tokensPerSecondTitle: 'Output tokens per second, averaged over the last 10 model calls',
+      togglePlanUsage: 'Plan usage',
+      planUsageTitle: (used, resetsIn) =>
+        `${used} of your plan's usage used${resetsIn ? ` · resets in ${resetsIn}` : ''} · open Billing`,
       agents: 'Agents',
       closeAgents: 'Close agents',
       openAgents: 'Open agents',
@@ -4605,6 +4653,10 @@ export const en: Translations = {
         free_tier_refused: {
           title: "Hermes couldn't send that without signing in",
           body: 'Signing in with a Nous account is free.'
+        },
+        usage_window: {
+          title: 'Included usage used up',
+          body: "Your plan's included usage is used up until it resets. Add credits in /topup to keep going."
         }
       },
       errorAuthKinds: {
@@ -4627,6 +4679,12 @@ export const en: Translations = {
       errorStartNewSession: 'Start new session',
       errorSwitchProvider: 'Switch provider',
       errorChooseModel: 'Choose a model',
+      errorSwitchToModel: (model, note) => (note ? `Switch to ${model} (${note})` : `Switch to ${model}`),
+      errorSwitchModelFailed: 'Could not switch model',
+      errorUseCredits: 'Turn on Keep going on credits',
+      errorUseCreditsFailed: 'Could not turn on Keep going on credits',
+      errorAddCredits: 'Add credits',
+      errorOpenBillingSettings: 'Open billing settings',
       errorCompressConversation: 'Compress conversation',
       errorCompressFailed: 'Could not compress the conversation',
       errorOpenHermesFolder: 'Open Hermes folder',

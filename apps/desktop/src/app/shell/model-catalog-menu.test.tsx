@@ -148,6 +148,65 @@ describe('the current row effort', () => {
   })
 })
 
+describe('usage-window plan rows', () => {
+  it('says a spent all-model allowance once, never as a note on every row', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        {
+          authenticated: true,
+          models: ['example/model-b', 'example/model-free:free'],
+          name: 'Nous',
+          plan_usage: {
+            gauges: [{ label: 'day', left_fraction: 0, scope: 'all', style: 'red' }],
+            kind: 'usage_window'
+          },
+          slug: 'nous',
+          usage_levels: { 'example/model-free:free': 'free', 'example/model-b': 'medium' }
+        }
+      ]
+    })
+    renderMenu({ model: 'example/model-free:free', provider: 'nous' })
+
+    await screen.findByText('Free')
+    // Only Large / Free carry a tag. A spent all-model allowance shows once under the provider, not on each row.
+    expect(screen.queryByText('Medium')).toBeNull()
+    expect(screen.getByText('Daily limit reached', { exact: false })).toBeTruthy()
+    expect(screen.queryByText('used up')).toBeNull()
+  })
+
+  it('marks only Large rows when the large-model limit is spent; pay as you go is said once, not per row', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        {
+          authenticated: true,
+          models: ['example/model-b', 'example/model-a', 'example/model-free:free'],
+          name: 'Nous',
+          plan_usage: {
+            credits_pay: true,
+            gauges: [
+              { label: 'day', left_fraction: 0.5, scope: 'all', style: 'green' },
+              { label: 'top_tier', left_fraction: 0, scope: 'top_tier', style: 'red' }
+            ],
+            kind: 'usage_window'
+          },
+          slug: 'nous',
+          usage_levels: {
+            'example/model-a': 'low',
+            'example/model-free:free': 'free',
+            'example/model-b': 'top_tier'
+          }
+        }
+      ]
+    })
+    renderMenu({ model: 'example/model-free:free', provider: 'nous' })
+
+    await screen.findByText('Large')
+    expect(screen.queryByText('Small')).toBeNull()
+    expect(screen.queryByText('uses credits')).toBeNull()
+    expect(screen.getByText('· Large models now use your credits (pay as you go)', { exact: false })).toBeTruthy()
+  })
+})
+
 describe('the reasoning-effort badge (#51833)', () => {
   it('renders the effort as its own Badge chip beside the name, never inside it', async () => {
     renderMenu({ effort: 'high', model: 'gemini-2.5-flash', provider: 'google' })

@@ -1,3 +1,4 @@
+// health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { deBoot } from './de_boot'
@@ -2039,6 +2040,17 @@ export const deOverrides = {
         effectScheduled: (targetName: string, effectiveAt: string, creditsDelta?: string) =>
           `Wechsel zu ${targetName} – wirksam ${effectiveAt}. Jetzt keine Abbuchung; bis dahin behalten Sie Ihren aktuellen Tarif.${creditsDelta ? ` Änderung der monatlichen Credits: ${creditsDelta}.` : ''}`
       },
+      keepGoingOnCredits: {
+        title: 'Mit Credits weitermachen',
+        description:
+          'Nutzt Ihre Credits, wenn die enthaltene Nutzung aufgebraucht ist. Aus: Hermes wartet auf das Zurücksetzen.',
+        approveInBrowser:
+          'Bestätige Remote Spending im Browser, um das zu ändern. Es wird übernommen, sobald du bestätigst.',
+        openAgain: 'Erneut öffnen',
+        cancel: 'Abbrechen',
+        approvedRetry: 'Remote Spending ist bestätigt, aber die Änderung wurde nicht gespeichert.',
+        tryAgain: 'Erneut versuchen'
+      },
       autoReload: {
         threshold: 'Schwellenwert',
         thresholdAria: 'Schwellenwert für automatisches Aufladen',
@@ -2118,6 +2130,21 @@ export const deOverrides = {
             captionDefault: 'Standardobergrenze',
             captionSpending: 'Monatliche Remote-Ausgaben',
             valueUsed: (spent: string, limit: string) => `${spent} von ${limit} genutzt`
+          },
+          window: {
+            today: 'Heute',
+            week: 'Diese Woche',
+            month: 'Dieser Monat',
+            topTier: 'Große Modelle (monatlich)',
+            barLabel: (title: string) => `${title}: genutztes Inklusivvolumen`,
+            captionPaused: 'Pausiert: Abo-Zahlung fehlgeschlagen',
+            captionPausedOther: 'Pausiert: siehe Abrechnung im Portal',
+            captionTopTierUsedUp: 'Monatskontingent aufgebraucht, Credits decken den Rest',
+            captionTopTierUsedUpKeepGoingOff:
+              'Monatskontingent aufgebraucht, andere enthaltene Modelle funktionieren weiter',
+            captionResetsIn: (duration: string) => `Wird in ${duration} zurückgesetzt`,
+            captionIncluded: 'Inklusivvolumen',
+            valueUsed: (percent: string) => `${percent} genutzt`
           }
         },
         planCard: {
@@ -4438,7 +4465,32 @@ export const deOverrides = {
     wasPrice: 'war',
     customModel: 'Eigenes Modell',
     addCustomModelAction: 'Eigenes Modell hinzufügen…',
-    customModelPlaceholder: 'Modell-ID eingeben, z. B. openai/gpt-5'
+    customModelPlaceholder: 'Modell-ID eingeben, z. B. openai/gpt-5',
+    today: 'Heute',
+    week: 'Woche',
+    month: 'Monat',
+    topTier: 'Große Modelle (monatlich)',
+    included: 'Alle Modelle unten sind enthalten',
+    pausedRenewal: 'pausiert: Verlängerung unbezahlt',
+    pausedOther: 'pausiert',
+    includedUsedUp: 'Inklusivvolumen aufgebraucht',
+    limitReached: (name: string) => `${name} erreicht`,
+    limitNames: {
+      day: 'Tageslimit',
+      month: 'Monatslimit',
+      top_tier: 'Monatslimit für große Modelle',
+      week: 'Wochenlimit'
+    },
+    limitThenCredits: 'kostenpflichtige Modelle nutzen jetzt dein Guthaben (Pay-as-you-go)',
+    limitThenCreditsLarge: 'Große Modelle nutzen jetzt dein Guthaben (Pay-as-you-go)',
+    limitThenWait: 'bis dahin nur kostenlose Modelle',
+    limitThenWaitLarge: 'Große Modelle bis dahin pausiert',
+    percentUsed: (percent: string) => `${percent} genutzt`,
+    resetsIn: (duration: string) => `Zurücksetzung in ${duration}`,
+    usageLevels: { free: 'Kostenlos', top_tier: 'Groß' },
+    sectionRecommended: 'Empfohlen',
+    sectionOther: 'Weitere Modelle',
+    largeFootnote: 'Große Modelle zählen auch zu deinem Monatslimit für große Modelle.'
   },
   modelVisibility: {
     title: 'Modelle',
@@ -5047,6 +5099,10 @@ export const deOverrides = {
         free_tier_refused: {
           title: 'Hermes konnte das ohne Anmeldung nicht senden',
           body: 'Eine Anmeldung mit einem Nous-Konto ist kostenlos.'
+        },
+        usage_window: {
+          title: 'Enthaltene Nutzung aufgebraucht',
+          body: 'Die enthaltene Nutzung Ihres Plans ist bis zum Zurücksetzen aufgebraucht. Laden Sie in /topup Credits auf, um weiterzumachen.'
         }
       },
       errorAuthKinds: {
@@ -5063,6 +5119,12 @@ export const deOverrides = {
       errorGenericProvider: 'Der KI-Dienst',
       errorToastTitle: 'Hermes konnte die Antwort nicht fertigstellen',
       errorRetry: 'Erneut versuchen',
+      errorSwitchToModel: (model, note) => (note ? `Zu ${model} wechseln (${note})` : `Zu ${model} wechseln`),
+      errorSwitchModelFailed: 'Modell konnte nicht gewechselt werden',
+      errorUseCredits: 'Mit Guthaben weitermachen aktivieren',
+      errorUseCreditsFailed: 'Mit Guthaben weitermachen konnte nicht aktiviert werden',
+      errorAddCredits: 'Guthaben aufladen',
+      errorOpenBillingSettings: 'Abrechnungseinstellungen öffnen',
       errorLimitResets: (time: string) => `Limit wird um ${time} zurückgesetzt`,
       errorRetryAtReset: (time: string) => `Erneut versuchen, wenn das Limit zurückgesetzt wird (${time})`,
       errorRetryScheduled: (time: string, wait: string) => `Neuer Versuch um ${time} – in ${wait}`,

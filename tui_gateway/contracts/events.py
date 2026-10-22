@@ -191,9 +191,40 @@ class TurnStatus(WireEnum):
     interrupted = "interrupted"
 
 
+class UsageLimitSuggestion(Payload):
+    """``agent/plan_limits.py::ModelSuggestion`` — a recommended model that still works past the limit."""
+
+    model: str
+    label: str
+    note: str                    # "free" | "included"
+    provider: str = "nous"
+
+
+class UsageLimitCredits(Payload):
+    """``agent/plan_limits.py::CreditsOption`` — ``use_credits`` (turn on Keep going), ``add_credits``, or
+    ``add_credits_and_keep_going`` (both: Keep going is off and there is no balance)."""
+
+    action: str
+
+
+class UsageLimit(Payload):
+    """``agent/plan_limits.py::LimitHit`` — a usage-window plan's limit: what ran out, when it resets, and
+    the one-click ways on (switch to a recommended model, use / add credits)."""
+
+    gauge_id: str
+    scope: str
+    limit_name: str
+    resets_at_ms: int | None = None
+    message: str
+    suggestions: list[UsageLimitSuggestion] = Field(default_factory=list)
+    credits: UsageLimitCredits | None = None
+    current_model: str = ""
+
+
 class ErrorSurface(Payload):
     """``agent/error_surface.py::_surface`` — advisory {layer, code, retryable} (+ identity, + auth hint,
-    + ``resets_at`` epoch seconds when the provider named when its limit lifts)."""
+    + ``resets_at`` epoch seconds when the provider named when its limit lifts, + ``usage_limit`` on a
+    usage-window plan's limit)."""
 
     layer: str
     code: str
@@ -201,6 +232,7 @@ class ErrorSurface(Payload):
     provider: str | None = None
     model: str | None = None
     resets_at: float | None = None
+    usage_limit: UsageLimit | None = None
     model_config = Payload.model_config | {"extra": "allow"}
 
 

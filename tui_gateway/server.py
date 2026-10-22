@@ -1421,6 +1421,19 @@ def _get_usage(agent) -> dict:
             for _key, _val in (("avg_latency_s", _total_lat / _n), ("avg_tps", _avg_vel)):
                 if _val is not None and _val == _val and 0 < _val < 1e6:  # guard NaN/negative/absurd provider timings
                     usage[_key] = round(float(_val), 1)
+    # Window plans only: the allowance the desktop status bar shows at a glance (today's, else the one that
+    # binds), from the reply headers the agent already tracks — no extra round trip, absent for everyone else.
+    with contextlib.suppress(Exception):
+        state = getattr(agent, "_credits_state", None)
+        if getattr(state, "is_usage_window", False) is True:  # `is True`: a Mock agent's attribute is not a plan
+            binding = state.binding_gauge
+            day = next((g for g in state.gauges if g.id == "day" and g.scope == "all"), None)
+            # A full allowance is what blocks, so it wins over today's; a passed reset is no longer current.
+            gauge = binding if binding is not None and binding.full else (day or binding)
+            reset = getattr(gauge, "resets_at_ms", None)
+            if gauge is not None and not (isinstance(reset, int) and 0 < reset <= int(time.time() * 1000)):
+                usage["plan_gauge"] = {"id": gauge.id, "label": gauge.label, "used_bp": int(gauge.used_bp),
+                                       "resets_at_ms": gauge.resets_at_ms}
     # Live count of background/async subagents (CLI status bar ⛓ parity, same async_delegation registry).
     with contextlib.suppress(Exception):
         from tools.async_delegation import active_count as _async_active_count

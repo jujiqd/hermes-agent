@@ -1,3 +1,4 @@
+// health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
@@ -2032,6 +2033,15 @@ export const esOverrides = {
         effectScheduled: (targetName: string, effectiveAt: string, creditsDelta?: string) =>
           `Cambio a ${targetName}: entra en vigor ${effectiveAt}. No se cobra nada ahora; conservas tu plan actual hasta entonces.${creditsDelta ? ` Cambio de créditos mensuales: ${creditsDelta}.` : ''}`
       },
+      keepGoingOnCredits: {
+        title: 'Seguir con créditos',
+        description: 'Usa tus créditos cuando se agote el uso incluido. Desactivado: Hermes espera al reinicio.',
+        approveInBrowser: 'Aprueba Remote Spending en tu navegador para cambiar esto. Se aplica en cuanto lo apruebes.',
+        openAgain: 'Abrir de nuevo',
+        cancel: 'Cancelar',
+        approvedRetry: 'Remote Spending está aprobado, pero el cambio no se guardó.',
+        tryAgain: 'Reintentar'
+      },
       autoReload: {
         threshold: 'Umbral',
         thresholdAria: 'Umbral de recarga automática',
@@ -2111,6 +2121,20 @@ export const esOverrides = {
             captionDefault: 'Límite predeterminado',
             captionSpending: 'Gasto remoto mensual',
             valueUsed: (spent: string, limit: string) => `${spent} de ${limit} usados`
+          },
+          window: {
+            today: 'Hoy',
+            week: 'Esta semana',
+            month: 'Este mes',
+            topTier: 'Modelos grandes (mensual)',
+            barLabel: (title: string) => `${title}: uso incluido consumido`,
+            captionPaused: 'En pausa: falló el pago de la suscripción',
+            captionPausedOther: 'En pausa: consulta Facturación en el Portal',
+            captionTopTierUsedUp: 'Cuota mensual agotada, los créditos cubren el resto',
+            captionTopTierUsedUpKeepGoingOff: 'Cuota mensual agotada, los demás modelos incluidos siguen funcionando',
+            captionResetsIn: (duration: string) => `Se restablece en ${duration}`,
+            captionIncluded: 'Uso incluido',
+            valueUsed: (percent: string) => `${percent} usado`
           }
         },
         planCard: {
@@ -4433,7 +4457,27 @@ export const esOverrides = {
     wasPrice: 'antes',
     customModel: 'Modelo personalizado',
     addCustomModelAction: 'Añadir modelo personalizado…',
-    customModelPlaceholder: 'Escribe un ID de modelo, p. ej., openai/gpt-5'
+    customModelPlaceholder: 'Escribe un ID de modelo, p. ej., openai/gpt-5',
+    today: 'Hoy',
+    week: 'Semana',
+    month: 'Mes',
+    topTier: 'Modelos grandes (mensual)',
+    included: 'Todos los modelos de abajo están incluidos',
+    pausedRenewal: 'en pausa: renovación impagada',
+    pausedOther: 'en pausa',
+    includedUsedUp: 'Uso incluido agotado',
+    limitReached: (name: string) => `Límite ${name} alcanzado`,
+    limitNames: { day: 'diario', month: 'mensual', top_tier: 'mensual de modelos grandes', week: 'semanal' },
+    limitThenCredits: 'los modelos de pago ahora usan tus créditos (pago por uso)',
+    limitThenCreditsLarge: 'los modelos grandes ahora usan tus créditos (pago por uso)',
+    limitThenWait: 'solo modelos gratuitos hasta entonces',
+    limitThenWaitLarge: 'modelos grandes en pausa hasta entonces',
+    percentUsed: (percent: string) => `${percent} usado`,
+    resetsIn: (duration: string) => `se restablece en ${duration}`,
+    usageLevels: { free: 'Gratis', top_tier: 'Grande' },
+    sectionRecommended: 'Recomendados',
+    sectionOther: 'Otros modelos',
+    largeFootnote: 'Los modelos grandes también cuentan para tu límite mensual de modelos grandes.'
   },
   modelVisibility: {
     title: 'Modelos',
@@ -5040,6 +5084,10 @@ export const esOverrides = {
         free_tier_refused: {
           title: 'Hermes no pudo enviarlo sin iniciar sesión',
           body: 'Iniciar sesión con una cuenta de Nous es gratis.'
+        },
+        usage_window: {
+          title: 'Uso incluido agotado',
+          body: 'El uso incluido de tu plan está agotado hasta el reinicio. Añade créditos en /topup para seguir.'
         }
       },
       errorAuthKinds: {
@@ -5056,6 +5104,12 @@ export const esOverrides = {
       errorGenericProvider: 'El servicio de IA',
       errorToastTitle: 'Hermes no pudo terminar la respuesta',
       errorRetry: 'Reintentar',
+      errorSwitchToModel: (model, note) => (note ? `Cambiar a ${model} (${note})` : `Cambiar a ${model}`),
+      errorSwitchModelFailed: 'No se pudo cambiar de modelo',
+      errorUseCredits: 'Activar Seguir con créditos',
+      errorUseCreditsFailed: 'No se pudo activar Seguir con créditos',
+      errorAddCredits: 'Añadir créditos',
+      errorOpenBillingSettings: 'Abrir ajustes de facturación',
       errorLimitResets: (time: string) => `El límite se restablece a las ${time}`,
       errorRetryAtReset: (time: string) => `Reintentar cuando se restablezca el límite (${time})`,
       errorRetryScheduled: (time: string, wait: string) => `Reintentando a las ${time}, dentro de ${wait}`,

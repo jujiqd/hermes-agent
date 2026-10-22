@@ -55,9 +55,11 @@ export interface BillingStateResult {
   payment_method?: BillingPaymentMethod | null
   monthly_cap?: BillingMonthlyCap | null
   auto_reload?: BillingAutoReload | null
+  keep_going_on_credits?: boolean | null
   portal_url?: string | null
   error?: string | null
   usage?: UsageModel | null
+  plan_usage?: PlanUsage | null
 }
 export interface BillingCardInfo {
   brand: string
@@ -100,6 +102,25 @@ export interface BillingAutoReloadCard {
   last4?: string | null
 }
 export type AutoReloadCardKind = 'canonical' | 'distinct' | 'none'
+/** ``hermes_cli/model_picker_usage.py::PickerUsage.to_payload`` — usage-window plan chrome. */
+export interface PlanUsage {
+  kind: string
+  plan?: string | null
+  gauges?: PlanUsageGauge[]
+  top_tier_model_ids?: string[]
+  featured_model_ids?: string[]
+  paused_reason?: string | null
+  credits_pay?: boolean | null
+}
+/** One server allowance on ``ModelOptionProvider.plan_usage``, in the server's order. ``label`` is the server's id (``day`` / ``week`` / ``month`` / ``top_tier`` have client words; any other id shows ``title``). ``scope``: which models a full one stops (``all`` / ``top_tier``). */
+export interface PlanUsageGauge {
+  label: string
+  left_fraction: number
+  style: string
+  resets_at_ms?: number | null
+  scope?: string
+  title?: string
+}
 /** ``_serialize_subscription_state``; the view's fallback emits only ``ok / logged_in / error``. */
 export interface SubscriptionStateResult {
   ok: boolean
@@ -115,6 +136,7 @@ export interface SubscriptionStateResult {
   portal_url?: string | null
   error?: string | null
   usage?: UsageModel | null
+  plan_usage?: PlanUsage | null
 }
 export type SubscriptionContext = 'personal' | 'team'
 export interface CurrentSubscription {
@@ -261,6 +283,10 @@ export interface BillingMutationResult {
   actor?: string | null
   code?: string | null
   recovery?: string | null
+}
+export interface BillingKeepGoingOnCreditsParams {
+  profile?: string | null
+  enabled?: boolean
 }
 export interface BillingStepUpParams {
   profile?: string | null
@@ -806,6 +832,8 @@ export interface ModelOptionProvider {
   free_tier_pending?: boolean | null
   free_tier_row?: boolean | null
   unavailable_models?: string[] | null
+  plan_usage?: PlanUsage | null
+  usage_levels?: Record<string, string> | null
   limit?: ProviderLimit | null
   usage?: ProviderUsage | null
   [key: string]: unknown
@@ -3476,6 +3504,7 @@ export interface SessionUsageResult {
   cost_usd?: number | null
   cost_status?: string | null
   credits_lines?: string[] | null
+  credits_usage_window?: boolean | null
   [key: string]: unknown
 }
 export interface SessionContextBreakdownParams {
@@ -5645,7 +5674,7 @@ export interface BillingBlock {
   message: string
   unverified?: boolean | null
 }
-/** ``agent/error_surface.py::_surface`` — advisory {layer, code, retryable} (+ identity, + auth hint, + ``resets_at`` epoch seconds when the provider named when its limit lifts). */
+/** ``agent/error_surface.py::_surface`` — advisory {layer, code, retryable} (+ identity, + auth hint, + ``resets_at`` epoch seconds when the provider named when its limit lifts, + ``usage_limit`` on a usage-window plan's limit). */
 export interface ErrorSurface {
   layer: string
   code: string
@@ -5653,7 +5682,30 @@ export interface ErrorSurface {
   provider?: string | null
   model?: string | null
   resets_at?: number | null
+  usage_limit?: UsageLimit | null
   [key: string]: unknown
+}
+/** ``agent/plan_limits.py::LimitHit`` — a usage-window plan's limit: what ran out, when it resets, and the one-click ways on (switch to a recommended model, use / add credits). */
+export interface UsageLimit {
+  gauge_id: string
+  scope: string
+  limit_name: string
+  resets_at_ms?: number | null
+  message: string
+  suggestions?: UsageLimitSuggestion[]
+  credits?: UsageLimitCredits | null
+  current_model?: string
+}
+/** ``agent/plan_limits.py::ModelSuggestion`` — a recommended model that still works past the limit. */
+export interface UsageLimitSuggestion {
+  model: string
+  label: string
+  note: string
+  provider?: string
+}
+/** ``agent/plan_limits.py::CreditsOption`` — ``use_credits`` (turn on Keep going), ``add_credits``, or ``add_credits_and_keep_going`` (both: Keep going is off and there is no balance). */
+export interface UsageLimitCredits {
+  action: string
 }
 /** Committed SQLite row addresses for the agent's current-turn suffix. Missing ids are unproven, never negative acknowledgements. ``complete`` permits retiring the whole local turn only when the original turn boundary, every row and final body are still accounted for; compaction, redirects and partial writes conservatively leave it false. Row ids are scoped to the owning profile's store, as in ``SessionMessage.row_id``. */
 export interface PersistedTurn {
@@ -5993,6 +6045,8 @@ export interface RpcMethods {
   'billing.charge': { params: BillingChargeParams; result: BillingChargeResult }
   /** Poll one charge by id. */
   'billing.charge_status': { params: BillingChargeStatusParams; result: BillingChargeStatusResult }
+  /** Window plans: turn 'Keep going on credits' on/off (billing:manage). */
+  'billing.keep_going_on_credits': { params: BillingKeepGoingOnCreditsParams; result: BillingMutationResult }
   /** Read-only billing view (no scope); the Nous free tier is answered locally without a portal call. */
   'billing.state': { params: ProfileParams; result: BillingStateResult }
   /** Run the billing:manage device flow; the URL/code arrive via billing.step_up.verification. */
@@ -6503,6 +6557,7 @@ export const RPC_METHODS = [
   'billing.auto_reload',
   'billing.charge',
   'billing.charge_status',
+  'billing.keep_going_on_credits',
   'billing.state',
   'billing.step_up',
   'bot_relay.deliver',

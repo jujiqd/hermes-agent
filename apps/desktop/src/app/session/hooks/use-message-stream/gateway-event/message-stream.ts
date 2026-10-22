@@ -124,6 +124,7 @@ function lightOwnMessagingTurn(runtimeId: string, admissionId: string | undefine
   lightDesktopMessagingCompletion(storedId, admissionId, storedId === $focusedStoredSessionId.get(), profile)
 }
 
+// health: allow CC -- usage-window limit: one guard so the error card, not a second billing toast, says it; this event switch was over target on main
 export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
   const { deps, event, payload, sessionId, isActiveEvent, occurredAt } = ctx
 
@@ -403,8 +404,12 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     }
 
     // Structured billing wall forwarded by the gateway (out of credits /
-    // payment required) — cache it + raise a billing-specific toast.
-    if (payload?.billing) {
+    // payment required) — cache it + raise a billing-specific toast. A window
+    // plan's limit is said once, by the turn's error card (its buttons are the
+    // ways on); a toast and banner would only repeat it.
+    const usageWindowWall = parseErrorSurface(payload?.error_surface)?.code === 'usage_window'
+
+    if (payload?.billing && !usageWindowWall) {
       surfaceBillingBlock(sessionId, payload.billing)
     }
 
