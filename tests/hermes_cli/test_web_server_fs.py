@@ -372,6 +372,19 @@ def test_fs_endpoints_require_auth(tmp_path):
     assert default_response.status_code == 401
 
 
+def test_fs_default_cwd_leaves_a_placeholder_terminal_cwd_to_terminal_cwd(client, monkeypatch, tmp_path):
+    """A placeholder terminal.cwd ("." is the default) counts as unset, so TERMINAL_CWD names the folder."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(file_routes, "load_config", lambda: {"terminal": {"cwd": "."}})
+    monkeypatch.setenv("TERMINAL_CWD", str(home))
+
+    response = client.get("/api/fs/default-cwd")
+
+    assert response.status_code == 200
+    assert response.json()["cwd"] == str(home.resolve())
+
+
 def test_fs_read_text_decodes_double_encoded_non_ascii_path(client, tmp_path):
     target = tmp_path / "半导体行业运营分享会纪要.md"
     target.write_text("hello")
@@ -410,6 +423,77 @@ def test_fs_write_text_never_decodes_percent_path(client, tmp_path):
     assert response.status_code == 200
     assert sibling.read_text() == "existing"
     assert (tmp_path / "report%20v2.md").read_text() == "new"
+
+
+def test_fs_read_data_url_reads_a_browser_paste_from_the_host_for_an_ssh_profile(client, monkeypatch):
+    """A browser paste is saved in the profile's host image cache even when its workspace is an
+    SSH machine. Sending it reads it back through this route, so that one host-owned path must not
+    go looking on the SSH machine; every other path still does."""
+
+    class FakeSshFs:
+        def read_bytes(self, path, *, max_bytes, read_limit=None):
+            raise ssh_workspace_fs.SshWorkspaceFsError("ENOENT", f"{path} is not on the SSH machine")
+
+        def inspect_file(self, path):
+            raise ssh_workspace_fs.SshWorkspaceFsError("ENOENT", f"{path} is not on the SSH machine")
+
+    monkeypatch.setattr(file_routes, "_fs_backend", lambda profile=None: FakeSshFs())
+    pasted = base64.b64decode("iVBORw0KGgo=")
+    upload = client.post(
+        "/api/chat/image-upload",
+        json={"data_url": "data:image/png;base64,iVBORw0KGgo=", "filename": "paste.png"},
+    )
+    assert upload.status_code == 200, upload.text
+    host_path = Path(upload.json()["path"])
+
+    # The same bytes on this host outside the image cache are still the SSH machine's to answer.
+    elsewhere = host_path.parent.parent / "elsewhere.png"
+    elsewhere.write_bytes(pasted)
+
+    read_back = client.get("/api/fs/read-data-url", params={"path": str(host_path)})
+    saved = client.get("/api/fs/download", params={"path": str(host_path)})
+    not_host_owned = client.get("/api/fs/read-data-url", params={"path": str(elsewhere)})
+
+    assert read_back.status_code == 200, read_back.text
+    assert base64.b64decode(read_back.json()["dataUrl"].split(",", 1)[1]) == pasted
+    assert (saved.status_code, saved.content) == (200, pasted)
+    assert not_host_owned.status_code == 404
+
+
+def test_a_browser_paste_reads_back_while_the_ssh_machine_is_unreachable(client, monkeypatch):
+    """A paste in the host image cache is read on this host before anything dials the SSH machine,
+    so it still sends while that machine is down. A path only the SSH machine has answers 503."""
+
+    class UnreachableSsh:
+        def __init__(self, **_options):
+            raise ConnectionRefusedError("ssh: connect to host 127.0.0.1 port 1: Connection refused")
+
+    monkeypatch.setattr(ssh_workspace_fs, "SSHEnvironment", UnreachableSsh)
+    monkeypatch.setattr(ssh_workspace_fs, "_BACKENDS", {})
+    monkeypatch.setattr(
+        file_routes, "load_config",
+        lambda: {"terminal": {"backend": "ssh", "ssh_host": "127.0.0.1", "ssh_user": "dev", "ssh_port": 1}},
+    )
+    monkeypatch.setattr(file_routes, "load_env", dict)
+    upload = client.post(
+        "/api/chat/image-upload",
+        json={"data_url": "data:image/png;base64,iVBORw0KGgo=", "filename": "paste.png"},
+    )
+    assert upload.status_code == 200, upload.text
+    host_path = upload.json()["path"]
+
+    read_back = client.get("/api/fs/read-data-url", params={"path": host_path})
+    saved = client.get("/api/fs/download", params={"path": host_path})
+    remote_only = client.get("/api/fs/read-data-url", params={"path": "/srv/repos/shot.png"})
+    remote_download = client.get("/api/fs/download", params={"path": "/srv/repos/shot.png"})
+
+    assert read_back.status_code == 200, read_back.text
+    assert read_back.json()["dataUrl"] == "data:image/png;base64,iVBORw0KGgo="
+    assert (saved.status_code, saved.content) == (200, base64.b64decode("iVBORw0KGgo="))
+    for response in (remote_only, remote_download):
+        assert (response.status_code, response.json()) == (503, {"detail": "SSH workspace is unavailable"})
+
+
 @pytest.mark.parametrize("endpoint", ["read-text", "read-data-url", "download"])
 def test_fs_reads_translate_docker_workspace_path_to_host(
     client, docker_volumes, monkeypatch, endpoint,

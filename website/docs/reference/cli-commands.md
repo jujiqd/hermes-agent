@@ -106,6 +106,7 @@ The install also ships `hermes-agent`, a minimal runner that sends one query and
 | `hermes import-agent` | Import a Claude Code (`~/.claude`) or Codex CLI (`~/.codex`) setup. |
 | `hermes dashboard` | Launch the web dashboard for managing config, API keys, and sessions. |
 | `hermes serve` | Start the Hermes backend server (headless; powers the desktop app and remote backends). |
+| `hermes webapp` | Open the Desktop workspace in a browser, served by the gateway. |
 | `hermes desktop` (alias `gui`) | Build and launch the native Electron desktop app. |
 | `hermes profile` | Manage profiles — multiple isolated Hermes instances. |
 | `hermes completion` | Print shell completion scripts (bash/zsh/fish). |
@@ -1923,6 +1924,48 @@ hermes dashboard --port 8080 --no-open
 # From a profile alias — routes to the machine dashboard with the
 # profile preselected in the sidebar switcher (attach if running)
 worker dashboard
+```
+
+## `hermes webapp`
+
+```bash
+hermes webapp [options]
+```
+
+Open the Hermes Desktop workspace in a normal browser. The gateway serves it on its own listener when
+`webapp.enabled` is `true` in the config ([Configuration → Webapp](../user-guide/configuration.md#webapp)).
+This command builds the Webapp bundle when it is out of date, starts the gateway if it is not running,
+and opens a one-use sign-in link. Chats run on that gateway, the same one the CLI, Desktop and messaging
+use. See [Desktop App → Use the Desktop workspace from a browser](../user-guide/desktop.md#use-the-desktop-workspace-from-a-browser).
+
+The link is valid for 60 seconds and works once; the browser exchanges it for the sign-in it keeps in
+that tab. Only your own OS user can get a link: the gateway answers this command over its private
+control socket. On macOS, where a one-use link cannot be checked against your OS user, the command
+prints the gateway's private link instead and never passes it to a browser launcher. That link signs a
+browser in as you until you run `hermes webapp --sign-out`; keep it private.
+
+For a named profile served by the default gateway (`hermes -p work webapp`), the Webapp opens on that
+profile.
+
+Behind the dashboard sign-in gate (`webapp.host: 0.0.0.0`), the command opens the Webapp's address
+instead of a one-use link, and you sign in there with your dashboard account. When the gateway cannot
+serve the Webapp, the command says why; the gateway reads its Webapp settings when it starts, so run
+`hermes gateway restart` after fixing the cause.
+
+| Option | Description |
+|--------|-------------|
+| `--no-open` | Print the one-use link (or, behind the sign-in gate, the address) instead of opening a browser |
+| `--skip-build` | Use the existing `apps/desktop/dist-webapp` as is |
+| `--force-build` | Rebuild the bundle even when its build receipt is current |
+| `--build-only` | Build the bundle and stop |
+| `--status` | Show whether the running gateway serves the Webapp, and at which address |
+| `--sign-out` | Sign out every tab a link signed in; their connections close and each needs a new link |
+
+```bash
+# Turn it on once, then open it
+hermes config set webapp.enabled true
+hermes gateway restart
+hermes webapp
 ```
 
 ## `hermes profile`

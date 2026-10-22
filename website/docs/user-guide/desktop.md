@@ -32,6 +32,95 @@ hermes desktop
 
 That uses your current config, keys, sessions, and skills.
 
+## Use the Desktop workspace from a browser
+
+The gateway can serve this workspace to a normal browser: sessions, profiles, Capabilities, Messaging,
+Artifacts, scheduled jobs, the host file tree, Git review, previews and the terminal rail. This is
+**not the Web Dashboard**. Turn it on once, then open it with `hermes webapp`:
+
+```bash
+hermes config set webapp.enabled true
+hermes gateway restart
+hermes webapp
+```
+
+The gateway then serves the Webapp at `http://127.0.0.1:9120` (see [Configuration → Webapp](./configuration.md#webapp)
+for the host and port). `hermes webapp` builds the bundle when it is out of date, starts the gateway if
+it is not running, and opens a one-use sign-in link. Chats run on that gateway, the same process that
+serves the CLI, the native Desktop and messaging, so every surface sees one conversation with one queue.
+
+**Signing in.** The link works once, within 60 seconds. The browser exchanges it for a sign-in that it
+keeps in that tab, so reloading keeps you signed in, and so does a gateway restart. A fresh tab or a
+bare URL shows instructions instead of access: run `hermes webapp` again for a new link. **New
+Window**, profile windows and session pop-outs hand the sign-in over with their own one-use link. On
+macOS the command prints the gateway's private link instead, for you to open; it signs a browser in as
+you until you sign out, so keep it private. `hermes webapp --sign-out` signs out every tab at once: their
+open connections close and each shows the sign-in instructions.
+
+For a named profile, `hermes -p work webapp` opens the Webapp on `work`. Profiles the default gateway
+serves share its Webapp; a standalone profile's own gateway serves its own when its config turns it on.
+
+**From another machine.** Set `webapp.host` to `0.0.0.0`; the gateway then requires the
+[dashboard sign-in gate](./features/web-dashboard.md#authentication-gated-mode) (username and password
+for a trusted LAN or VPN, OAuth/OIDC for anything internet-facing). `hermes webapp` then opens the
+Webapp's address, where you sign in with your dashboard account; one-use links serve only a loopback
+Webapp. HTTPS is strongly recommended remotely and browsers require it for some microphone and
+clipboard features.
+
+:::warning Treat Webapp access like access to Hermes on the host
+A signed-in Webapp user can run arbitrary commands as the OS account running Hermes, run agent tools,
+use host files and Git, and reach that account's environment and credentials. Do not expose it without
+a sign-in provider. Prefer an SSH tunnel, Tailscale or another trusted VPN.
+:::
+
+`hermes webapp --status` shows whether the gateway serves the Webapp. When it cannot (the port is
+taken, or a wildcard host has no sign-in provider), the gateway still serves native clients and the
+status says why. The gateway reads these settings when it starts, so restart it after fixing the cause
+(`hermes gateway restart`).
+
+Browser-selected files are staged under the active profile before they enter the normal attachment
+flow, with a **16 MiB** limit per file. Host files download through the browser's download manager, and
+supported audio and video play inline using the server's file-access rules. **Save Image** for
+cross-origin URLs needs CORS, with a **25 MiB** limit and a **30-second** deadline. Website links open
+in a separate tab; explicit URL previews use a sandboxed iframe that cannot open popups, so use **Open
+in browser** for sites that refuse embedding. Native-only features stay in Electron: global shortcuts,
+always-on-top overlays, OS-window inspection, external-terminal launch and the updater.
+
+Chats written before the gateway owned sessions show their history but cannot be continued from the
+browser until they are adopted: run `hermes sessions adopt` once on the host (`hermes -p <profile>
+sessions adopt` for another profile), or open them once in the native Desktop, TUI or CLI.
+
+### Open it from your phone or another computer
+
+In the native app, **Settings → Web Access** turns the Webapp on for other devices, behind sign-in with
+your Nous account (Providers → Accounts). It appears only on the local connection.
+
+- **This network:** devices on the same Wi-Fi open `http://<this computer's address>:9120`. This is plain
+  HTTP, so use it only on a network you trust.
+- **My own URL:** an HTTPS address you already run (Tailscale Serve, a tunnel or a reverse proxy) that
+  forwards to `http://127.0.0.1:9120`. Never forward that port from your router directly.
+
+**Start** saves the `webapp:` settings and restarts the gateway, which reads them when it starts. While a
+chat is running the gateway refuses to restart: the pane shows **Restart needed** and the settings apply
+on the next restart. **Stop** turns the Webapp off the same way.
+
+### Terminal in the Webapp
+
+The terminal rail opens the host's interactive shell, running as a child of the gateway, in your home
+folder unless `terminal.cwd` names another. Dropping files onto it uploads them to the host (**16 MiB**
+each) and types their paths. Refreshing the page or losing the connection detaches the terminal
+without ending its shell; the saved terminal tab reattaches to that shell and its profile. Hiding a
+terminal is not closing it; closing its tab ends the shell. A second browser tab attaching to the same
+terminal takes over the connection.
+
+Detached shells are kept for **15 minutes** while the gateway runs, up to **16 host terminals**
+including detached ones. A gateway restart or update ends them. Reconnecting replays up to **1 MiB** of
+recent output; full-screen programs may need their own redraw command.
+
+The bundle's npm dependencies install into `.build/webapp-workspace` in the checkout, separately from
+the native Desktop, and reinstall only when the lockfile changes. With lazy installs disabled, a plain
+`hermes webapp` does not install them; `--build-only` or `--force-build` does.
+
 ## What's in the app
 
 The desktop app is organized as a chat-first window with a left sidebar for navigation. It's built to allow managing multiple simultaneous agent conversations, configuring messaging providers, creating artifacts, browsing projects' folder structures, and working on multiple projects at once.

@@ -25,6 +25,7 @@ import urllib.parse
 from hermes_cli.install_identity import get_install_id as _shared_get_install_id
 from hermes_cli.process_identity import is_desktop_owned_backend
 from hermes_cli.pty_session import run_reaper
+from hermes_cli import web_server_file_tickets as _file_tickets
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -33,6 +34,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from hermes_constants import WEBAPP_ATTACHMENT_MAX_BYTES
 from hermes_cli.config import load_config
 from hermes_cli.version_info import get_version_info
 
@@ -296,6 +298,12 @@ def _ssh_runtime_intact() -> bool:
 # share one testable seam.
 _DASHBOARD_EMBEDDED_CHAT_ENABLED = True
 
+from hermes_cli.web_upload_limit import ChatFileUploadLimitMiddleware
+
+# Inside every auth/Host middleware: those checks run before body ingestion,
+# and the receive limit runs before FastAPI can spool a multipart attachment.
+app.add_middleware(ChatFileUploadLimitMiddleware)
+
 # Endpoints that do NOT require the session token; everything else under /api/
 # is gated below. Shared with the OAuth gate so the two allowlists cannot
 # drift (/api/status once 401'd under the OAuth gate, breaking the portal probe).
@@ -316,12 +324,17 @@ def _has_valid_session_token(request: Request) -> bool:
     return hmac.compare_digest(auth.encode(), f"Bearer {_SESSION_TOKEN}".encode())
 
 
-# Routes that may also authenticate via ``?token=`` (download links opened by
-# the OS shell / a new tab, where no header can be set). Kept narrow.
+# Routes that may also authenticate via ``?token=`` for Electron's remote
+# "open externally" download link. Browser pages use path-bound file tickets
+# instead (``web_server_file_tickets``), so the session token never lands in
+# their download history or a copyable media URL. The OAuth gate still requires
+# its session cookie; query credentials are only accepted by the loopback gate.
 _QUERY_TOKEN_API_PATHS: frozenset[str] = frozenset({"/api/files/download"})
 
 
 def _has_valid_query_token(request: Request, path: str) -> bool:
+    if _file_tickets.redeem(request):
+        return True
     if path not in _QUERY_TOKEN_API_PATHS:
         return False
     token = request.query_params.get("token", "")
@@ -650,7 +663,7 @@ elif _GATEWAY_HEALTH_TIMEOUT > _GATEWAY_HEALTH_TIMEOUT_MAX:
 
 
 _MANAGED_FILE_MAX_BYTES = 100 * 1024 * 1024
-_FS_DATA_URL_MAX_BYTES = 16 * 1024 * 1024
+_FS_DATA_URL_MAX_BYTES = WEBAPP_ATTACHMENT_MAX_BYTES
 # Multipart uploads stream to a temp file in fixed chunks and rename into
 # place: constant memory, no base64 inflation, no proxy body-size 502s (NS-501).
 _UPLOAD_CHUNK_BYTES = 1024 * 1024
@@ -794,10 +807,15 @@ from hermes_cli.web_routers import (
     chat_ws as _chat_ws_routes,
     chat_workspaces as _chat_workspaces_routes,
     dashboard_ui as _dashboard_ui_routes,
+    webapp as _webapp_routes,
     shared_metrics as _shared_metrics_routes,
+    webapp_access as _webapp_access_routes,
 )
 
+import hermes_cli.web_routers.uploads as _upload_routes
+
 app.include_router(_files_routes.router)
+app.include_router(_upload_routes.router)
 app.include_router(_git_routes.router)
 app.include_router(_local_models_routes.router)
 app.include_router(_status_routes.router)
@@ -827,7 +845,9 @@ app.include_router(_analytics_routes.router)
 app.include_router(_chat_ws_routes.router)
 app.include_router(_chat_workspaces_routes.router)
 app.include_router(_dashboard_ui_routes.router)
+app.include_router(_webapp_routes.router)
 app.include_router(_shared_metrics_routes.router)
+app.include_router(_webapp_access_routes.router)
 
 # Plugin API routes and the dashboard auth routes (/login, /auth/*, /api/auth/*)
 # mount before the SPA catch-all so /{full_path:path} doesn't swallow them. Auth

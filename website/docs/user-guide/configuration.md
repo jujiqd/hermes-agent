@@ -3116,6 +3116,23 @@ onboarding:
 - `seen` — internal state. Hermes latches each shown hint here so it never fires again; the first-message offer is also recorded here once shown. Don't hand-edit it — wipe the whole `onboarding` section if you want to re-see all hints.
 - `run` — whether the desktop app opens its first-run onboarding chat on the next launch. Unset means only on a fresh install (no sessions and no profiles yet). Hermes writes `true` when onboarding starts and `false` when it is finished or skipped. It always lives in the default profile's `config.yaml`, whichever profile the app runs. Set `false` to never show it; managed installs can pin it in the managed config.
 
+## Webapp
+
+The gateway can serve the [Desktop workspace in a browser](./desktop.md#use-the-desktop-workspace-from-a-browser) on its own listener. It is off until you turn it on.
+
+```yaml
+webapp:
+  enabled: false     # true: the gateway serves the Webapp
+  host: 127.0.0.1    # loopback address, or 0.0.0.0 / :: for other machines (dashboard sign-in required)
+  port: 9120         # fixed, so the browser's address stays the same across gateway restarts
+```
+
+- `enabled` — the gateway reads it at start; restart the gateway after changing it (`hermes gateway restart`).
+- `host` — a loopback address keeps the Webapp on this machine. `0.0.0.0` or `::` makes it reachable from other machines and requires a [dashboard sign-in provider](./features/web-dashboard.md#authentication-gated-mode); without one the gateway serves native clients only and `hermes webapp --status` says why. Restart the gateway after adding the provider. Any other value keeps the Webapp off.
+- `port` — when the port is taken, the gateway likewise serves native clients only and `hermes webapp --status` reports why.
+
+The Webapp settings are read from the config of the gateway that serves the profile: the default profile's config for named profiles it serves, a standalone profile's own config otherwise.
+
 ## Dashboard
 
 Configuration for the [web dashboard](./features/web-dashboard.md) — visual theme, public URL, and authentication providers. The auth providers (OAuth, basic password, drain) are documented in detail on the web-dashboard page; this is the `config.yaml` shape.

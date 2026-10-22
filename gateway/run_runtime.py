@@ -495,8 +495,34 @@ async def recover_bot_mailbox(authority):
 
 
 async def start_gateway_runtime_api(runner):
-    from gateway.run_api import start_gateway_api
-    runner.session_api = await start_gateway_api(runner)
+    from gateway import run_api
+    from gateway.webapp_listener import dial_origin, listener_plan, register_control_verbs
+    from hermes_constants import get_hermes_home
+    home = get_hermes_home()
+    host, port, webapp = listener_plan(home)
+    runner.webapp_status = {"state": "off", "url": None, "reason": None}
+    try:
+        # Without the Webapp the listener is main's: the same call, a private ephemeral port.
+        runner.session_api = await (run_api.start_gateway_api(runner, host=host, port=port, webapp=webapp)
+                                    if webapp is not None else run_api.start_gateway_api(runner))
+    except (Exception, SystemExit) as exc:
+        if webapp is None:
+            raise
+        # The Webapp's listener could not start (port taken, address unavailable, or the dashboard's
+        # auth gate exiting on a wildcard bind with no sign-in provider): native clients still need
+        # this gateway, so it keeps main's private listener and reports why the Webapp is not served.
+        if isinstance(exc, SystemExit):
+            reason = str(exc.code).strip()  # the gate's own message names the fix
+        else:
+            cause = (exc.strerror or exc) if isinstance(exc, OSError) else exc
+            reason = f"could not listen on {host}:{port} ({cause})"
+        logger.error("Webapp unavailable: %s", reason)
+        runner.webapp_status = {"state": "unavailable", "url": None, "reason": reason}
+        runner.session_api = await run_api.start_gateway_api(runner)
+    else:
+        if webapp is not None:
+            runner.webapp_status = {"state": "serving", "url": dial_origin(host, port), "reason": None}
+    register_control_verbs(runner, home)
     runner.session_runtime_descriptor['api_origin'] = runner.session_api.api_origin
     for authority in _authorities(runner):
         await _recover_profile_bot_mailbox(runner, authority)

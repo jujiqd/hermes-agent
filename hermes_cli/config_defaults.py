@@ -1011,7 +1011,7 @@ DEFAULT_CONFIG = {
             "unicode_cols": 0,  # Hard override for terminal column width; 0 = derive from scale.
         },
     },
-
+    "webapp": {"enabled": False, "host": "127.0.0.1", "port": 9120},  # gateway/webapp_listener.py
     "dashboard": {
         # Visual theme: "default" | "midnight" | "ember" | "mono" | "cyberpunk" | "rose"
         "theme": "default",

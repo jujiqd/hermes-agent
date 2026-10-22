@@ -47,7 +47,10 @@ The server issues `session:operator` only at these existing trusted boundaries:
 - Native interactive bootstrap ticket redemption (not worker-adoption tickets).
 - The dashboard WebSocket upgrade gate, including authenticated dashboard login tickets,
   the process-lifetime internal credential for server-spawned PTY clients, and the verified
-  legacy session token when that authentication path is enabled.
+  legacy session token when that authentication path is enabled. With `webapp.enabled`, that
+  session token is the browser-hosted Desktop's credential: the gateway keeps it in its home so
+  Webapp tabs survive a restart, hands it out only through a one-use link minted for a same-user
+  control-socket peer, and replaces it on `hermes webapp --sign-out`.
 - The HTTP mutation gate, after a verified dashboard Session, native HTTP owner grant,
   or permitted legacy session token has been accepted.
 
@@ -60,8 +63,9 @@ restriction rather than treating every accepted dashboard credential as an opera
 
 Cross-subject local submissions carry a private, server-written profile/session/principal
 binding for queued execution and recovery. It is not exposed in model requests or public
-session snapshots. This change does not expose the gateway listener remotely or implement
-OpenAI API-to-local session affinity; those remain separate integration paths.
+session snapshots. This change does not implement OpenAI API-to-local session affinity. The gateway
+listener stays on loopback unless `webapp.host` binds a wildcard address, which engages the
+dashboard sign-in gate.
 
 ## Deliberately limited compatibility
 
