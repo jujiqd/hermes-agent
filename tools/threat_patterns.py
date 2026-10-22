@@ -58,6 +58,12 @@ MAX_SCAN_CHARS = 65_536
 # bypasses without introducing unbounded repetition.
 _FILLER = r"(?:\w+\s+){0,8}"
 
+# Separator runs for obfuscation variants (space / underscore / hyphen
+# between the letters of a keyword).  Bounded like _FILLER so adversarial
+# noise can't blow up backtracking.
+_OBF_SEP_MAX = r"[\s_\-]{0,16}"
+_OBF_SEP_MIN = r"[\s_\-]{1,16}"
+
 # Each entry: (regex, pattern_id, scope)
 # scope ∈ {"all", "context", "strict"}
 _PATTERNS: List[Tuple[str, str, str]] = [
@@ -70,6 +76,24 @@ _PATTERNS: List[Tuple[str, str, str]] = [
     (r'<\s*div\s+style\s*=\s*["\'][^>]{0,2048}display\s*:\s*none', "hidden_div", "all"),
     (r'translate\s+[^\n]{0,512}\s+into\s+[^\n]{0,512}\s+and\s+(execute|run|eval)', "translate_execute", "all"),
     (rf'do\s+not\s+{_FILLER}tell\s+{_FILLER}the\s+user', "deception_hide", "all"),
+    # ── Injection obfuscation variants (applies everywhere) ──────────
+    # Explicit obfuscated forms of the classic injection payload.  Each
+    # pattern enumerates exact forms — no prefix wildcards — because a
+    # broad ``ign[^\s]*`` matcher also flags benign text such as
+    # "ignition previous instructions" (see "Pattern anchoring" above).
+    # Separator runs are bounded like _FILLER so adversarial noise can't
+    # blow up backtracking.  NBSP, zero-width and other invisible/inout
+    # codepoints are handled before regex matching (raw-content
+    # invisible-unicode pass + NFKC normalisation) — only cross-script
+    # homoglyphs remain undetectable there, so those get exact patterns
+    # below (Cyrillic г н о р е, and і U+0456).
+    (rf'\bign(?:re|roe|0re)\s+{_FILLER}(?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
+    (rf'\bign[_\-](?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
+    (rf'\bi\.g\.n\.o\.r\.e\s+{_FILLER}(?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
+    (rf'ignore[_\-](?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
+    (rf'\bi{_OBF_SEP_MIN}g{_OBF_SEP_MAX}n{_OBF_SEP_MAX}o{_OBF_SEP_MAX}r{_OBF_SEP_MAX}e\s+{_FILLER}(?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
+    (rf'i\u0433\u043d\u043e\u0440\u0435\s+{_FILLER}(?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
+    (rf'\u0456gnore\s+{_FILLER}(?:previous|all|above|prior)\s+{_FILLER}instructions', "prompt_injection", "all"),
 
     # ── Role-play / identity hijack (context + strict; common attack
     #    surface in scraped web content and poisoned context files) ──
