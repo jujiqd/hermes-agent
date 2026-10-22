@@ -194,9 +194,6 @@ describe('JsonRpcRequestChannel', () => {
   })
 
   it('says it is the local Desktop first on the socket, in a call of its own', () => {
-    // The boot's first onboarding.state goes out as soon as the socket opens; the backend reads frames
-    // in order, so the declaration must already be ahead of it. Its own call: a backend older than the
-    // field refuses only it and keeps server_requests.
     let local = true
     const channel = new JsonRpcRequestChannel({ desktopLocal: () => local, requestIdPrefix: 'c' })
     const { sent, transport } = spyTransport()
@@ -207,7 +204,6 @@ describe('JsonRpcRequestChannel', () => {
     channel.handleFrame(JSON.stringify({ jsonrpc: '2.0', method: 'event', params: { type: 'gateway.ready', payload: {} } }))
     expect(params()).toEqual([{ desktop_local: true }, { assume_fresh: true }, { server_requests: true }])
 
-    // A remote connection says nothing.
     local = false
     channel.attach(spyTransport().transport)
     expect(params()).toHaveLength(3)

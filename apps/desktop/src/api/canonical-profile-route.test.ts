@@ -15,7 +15,6 @@ test('a sibling profile route survives canonical request translation', async () 
   server.on('connection', (socket: any) => {
     socket.on('message', (bytes: Buffer) => {
       const frame = JSON.parse(bytes.toString())
-      // The connection's own handshake (the local-Desktop declaration), not a frame under test.
       if (frame.method === 'client.capabilities') { socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result: { server_requests: [] } })); return }
       sent.push(frame)
 

@@ -76,7 +76,7 @@ def onboarding_prelude(agent, history: Iterable[dict]) -> Iterator[tuple[str, st
 
 def onboarding_turn_note(agent, *, history_empty: bool, card_waiting: bool) -> str:
     """Before a user turn in the onboarding chat, while no card waits: which card is closed and how to
-    bring it back. Rides the turn's API-only notes, like the first-contact note."""
+    bring it back."""
     from agent.onboarding_flow import is_active
     from agent.onboarding_record import load
     from agent.onboarding_text import turn_note

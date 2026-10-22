@@ -86,14 +86,11 @@ def _stat(path):
 
 
 def start_due_boot() -> None:
-    """Serve boot, desktop's local backend: work out the due answer off the RPC path, after the setup
-    bootstrap has recorded a fresh install and kept an existing guest's trial."""
+    """Work out the local Desktop's due answer off the RPC path, after the setup bootstrap has recorded
+    a fresh install (``begin_local_desktop_boot``)."""
     from agent.memory_provider import spawn_context_thread
     from hermes_cli import free_tier_bootstrap, onboarding_due
-    from hermes_cli.anon_auth import on_local_desktop_backend
 
-    if not on_local_desktop_backend():
-        return
     finish = onboarding_due.begin_boot(_due_stamp)
 
     def compute() -> dict[str, bool]:
@@ -109,9 +106,8 @@ _local_desktop_boot_started = False
 
 
 def begin_local_desktop_boot() -> None:
-    """The local Desktop's first accepted connection to this process. It no longer spawns its own
-    ``hermes serve``, so the boot work that ran there (record a fresh install, settle an interrupted
-    claim, the setup record and the due answer) runs here, once, as work for that Desktop."""
+    """The local Desktop's first accepted connection to this process: record a fresh install, settle an
+    interrupted claim, the setup record and the due answer, once, as work for that Desktop."""
     global _local_desktop_boot_started
     from hermes_cli import free_tier_bootstrap
     from hermes_cli.process_identity import serving_local_desktop

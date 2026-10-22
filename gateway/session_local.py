@@ -238,7 +238,7 @@ def staged_creation_follows(authority, actor, request_id):
 def _welcome_trial_model():
     """The free model for a chat that has no configured one, while the welcome trial carries this
     activity (the local Desktop, a claimed guest): what the agent pins on the welcome host anyway
-    (``anon_auth.pin_model_for_route``). Else None, and the create refuses as before."""
+    (``anon_auth.pin_model_for_route``). Else None, and the create refuses."""
     from hermes_cli import anon_auth
     return anon_auth.GUEST_MODEL if anon_auth.free_inference_active() else None
 
@@ -283,7 +283,7 @@ def stage_local_session(authority, actor, params, *, trusted_policy=None, truste
                 {**json.loads(policy.request_json), 'model_requested': raw_model, 'route_derived': derived},
                 sort_keys=True))
         if desktop_local and policy.source == 'gui':
-            import json  # owner-stamped like ``model_requested``: the client cannot send it as a create field
+            import json
             policy = replace(policy, request_json=json.dumps(
                 {**json.loads(policy.request_json), 'desktop_local': True}, sort_keys=True))
         if policy.model is None:

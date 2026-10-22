@@ -5,13 +5,8 @@ start creates it here, writes the run record (``agent.onboarding_record``) befor
 attaches the asking connection and admits the hidden opening turn through the same durable FIFO as a
 typed message. The record is what makes it an onboarding chat for every later turn: the ``onboarding``
 toolset fold-in (``run_turn``), the scripted greeting and name card and the per-turn note
-(``run_turn_runner``), all from ``agent.onboarding_session``.
-
-Before this module the methods fell through to the old sidecar handler (``tui_gateway/
-methods_onboarding.py``), which built its own live runtime for the chat, and the window's
-``session.resume`` on that chat was refused with ``runtime_coordination_required`` because another
-writer held it. ``onboarding.state`` and ``onboarding.set_run`` read and write only config and stay on
-the sidecar handler.
+(``run_turn_runner``), all from ``agent.onboarding_session``. ``onboarding.state`` and
+``onboarding.set_run`` read and write only config and stay on the sidecar handler.
 """
 from __future__ import annotations
 
@@ -25,7 +20,7 @@ from hermes_state_runtime import RuntimeStoreError
 
 logger = logging.getLogger(__name__)
 
-ONBOARDING_PROFILE = 'default'  # tui_gateway/methods_onboarding.py::_ONBOARDING_PROFILE
+ONBOARDING_PROFILE = 'default'
 
 
 class OnboardingRefusal(RuntimeStoreError):
@@ -45,7 +40,6 @@ def handlers(connection):
 
 
 def _onboarding_connection(connection):
-    """The connection to the profile onboarding runs in: this one, or its sibling on a host-scoped socket."""
     return connection._sibling_for(ONBOARDING_PROFILE) or connection
 
 
@@ -78,7 +72,6 @@ async def start(connection, ref, params):
         await connection.resume(chat, {})
         opening = plan['opening'] if plan['stored'] else await asyncio.to_thread(_opening_for, authority, stored)
         if opening is not None:
-            # The opening rules ride a hidden user turn; its prelude plays the greeting and the name card.
             run_id = await asyncio.to_thread(_run_id, authority, stored)
             await connection.submit(chat, {'session_id': stored, 'text': opening, 'display_kind': 'hidden',
                                            'submission_id': f'onboarding-opening:{run_id or stored}'})
@@ -87,9 +80,8 @@ async def start(connection, ref, params):
 
 
 def _choose_run(authority, request):
-    """Which chat the run lives in (the open one, or None for a new chat), the facts and the trial
-    claim a new chat needs. A refused claim (5079) or a blocked one with nothing else to run on (5080)
-    leaves no chat, so the install stays due."""
+    """A refused claim (5079) or a blocked one with nothing else to run on (5080) leaves no chat, so
+    the install stays due."""
     from agent.onboarding_facts import read_facts
     from agent.onboarding_flow import Facts
     from agent.onboarding_record import load, open_session_ids
@@ -102,18 +94,15 @@ def _choose_run(authority, request):
             'replaced': [sid for sid in open_ids if sid != stored]}
     if stored is not None:
         facts = Facts.from_stored(load(db, stored)['facts'])
-        # A chat with no messages never got its opening (a restart between start and the first turn).
         if not (db.get_session(stored) or {}).get('message_count'):
             plan['opening'] = opening_prompt(facts)
         plan['facts'] = facts
         return plan
     plan['facts'] = read_facts(facts_source=request.facts_source.value, locale=request.locale)
-    if not request.rerun:  # a rerun never claims: it runs on the configured model
+    if not request.rerun:
         try:
             plan['claimed'] = _claim_before_run(assume_fresh=request.assume_fresh)
         except AuthError as exc:
-            # The trial claim failed (portal down, rate limited): no guest and no chat, so the next
-            # launch is still a first install and tries again.
             logger.info('onboarding.start: welcome trial not claimed: %s', exc)
             raise OnboardingRefusal(5079, str(exc)) from exc
         except _NoModelForTheRun as exc:
@@ -124,7 +113,7 @@ def _choose_run(authority, request):
 
 def _claim_before_run(*, assume_fresh):
     """``onboarding.run: true`` on disk before the welcome-trial claim, so a crash after the claim still
-    opens onboarding next launch (tui_gateway/methods_onboarding.py::_claim_before_run)."""
+    opens onboarding next launch."""
     from hermes_cli import anon_auth
     from hermes_cli.onboarding_run import set_run
     from hermes_cli.welcome_trial import claim_desktop_free_tier, provider_configured
@@ -136,7 +125,6 @@ def _claim_before_run(*, assume_fresh):
 
 
 async def _create_chat(connection):
-    """A new local Desktop session owned by the authority from its first row."""
     from gateway.session_local import stage_local_session
     from gateway.session_local_recovery import restore_local_session
     from gateway.session_runtime_workers import tracked_write
@@ -146,8 +134,6 @@ async def _create_chat(connection):
                                  client_local=connection.native_owner,
                                  desktop_local=getattr(connection.transport, 'desktop_local', False))
     if not (staged['policy'] or {}).get('model'):
-        # Nothing to run the chat on (a rerun before any provider is set up): no chat, the way a blocked
-        # claim opens none, instead of a row whose launch policy can never be restored.
         raise OnboardingRefusal(5080, 'No model is set up to run onboarding on.')
     await tracked_write(authority, partial(commit_local_session, authority.db, epoch=authority.epoch, receipt=staged))
     return restore_local_session(authority, staged['session_id']).session_id

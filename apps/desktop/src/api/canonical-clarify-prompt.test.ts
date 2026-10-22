@@ -17,7 +17,6 @@ test('a reopened sibling chat delivers retained questions before returning and r
 
   server.on('connection', (socket: any) => socket.on('message', (bytes: Buffer) => {
     const frame = JSON.parse(bytes.toString())
-    // The connection's own handshake (the local-Desktop declaration), not a frame under test.
     if (frame.method === 'client.capabilities') { socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result: { server_requests: [] } })); return }
     sent.push(frame)
     socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id,
@@ -59,7 +58,6 @@ test('a canonical clarify prompt drives the question card and its lock answers o
   server.on('connection', (socket: any) => {
     socket.on('message', (bytes: Buffer) => {
       const frame = JSON.parse(bytes.toString())
-      // The connection's own handshake (the local-Desktop declaration), not a frame under test.
       if (frame.method === 'client.capabilities') { socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result: { server_requests: [] } })); return }
       sent.push(frame)
       socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, result: { status: 'resolved' } }))

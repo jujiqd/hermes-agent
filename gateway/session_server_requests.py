@@ -119,7 +119,7 @@ def waiting(events, session_id, method) -> bool:
 def withdraw(events, session_id, method) -> int:
     """Settle every open *method* request on this live session's stream with no answer, the way a
     viewer that answered would: the asker reads None and every renderer gets ``request.cancel
-    reason: resolved``. Main's ``_cancel_session_requests(sid, "resolved", method=...)``."""
+    reason: resolved``."""
     with _lock:
         settled = [_open.pop(rid) for rid, p in list(_open.items())
                    if p.session_id == session_id and p.events is events and p.method == method]

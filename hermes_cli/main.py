@@ -2536,19 +2536,8 @@ def _dashboard_sanitize_desktop_env(headless_backend) -> None:
     overrides (dev / custom builds) must still work, while headless `serve`
     keeps the packaged path used by the Desktop backend. Headless `serve`
     re-sets HERMES_SERVE_HEADLESS itself.
-
-    The Desktop's legacy fallback spawn (`dashboard --no-open`, taken when the
-    `serve --help` probe times out on a cold host) is not headless yet must keep
-    its packaged dist: it is told apart by the per-spawn
-    HERMES_DASHBOARD_SESSION_TOKEN, which the terminal pane never receives and
-    the terminal tool's env policy strips from agent children.
     """
-    desktop_owned_child = _is_desktop_owned_backend()
-    if (
-        not headless_backend
-        and not desktop_owned_child
-        and _is_electron_packaged_web_dist(os.environ.get("HERMES_WEB_DIST", ""))
-    ):
+    if not headless_backend and _is_electron_packaged_web_dist(os.environ.get("HERMES_WEB_DIST", "")):
         os.environ.pop("HERMES_WEB_DIST", None)
     if not headless_backend:
         os.environ.pop("HERMES_SERVE_HEADLESS", None)

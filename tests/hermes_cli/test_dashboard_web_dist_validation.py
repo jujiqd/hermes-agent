@@ -165,17 +165,3 @@ def test_desktop_headless_serve_keeps_packaged_renderer(main_mod, monkeypatch):
     main_mod._dashboard_sanitize_desktop_env(headless_backend=True)
 
     assert os.environ["HERMES_WEB_DIST"] == packaged
-
-
-def test_desktop_owned_fallback_dashboard_keeps_packaged_renderer(main_mod, monkeypatch):
-    """The Desktop's own legacy `dashboard --no-open` fallback spawn (serve probe
-    timed out) is not headless but carries the per-spawn session token; stripping
-    its dist would send a packaged install into `_build_web_ui(fatal=True)`."""
-    packaged = "/Applications/Hermes.app/Contents/Resources/app.asar.unpacked/dist"
-    monkeypatch.setenv("HERMES_DESKTOP", "1")
-    monkeypatch.setenv("HERMES_DASHBOARD_SESSION_TOKEN", "desktop-spawn-token")
-    monkeypatch.setenv("HERMES_WEB_DIST", packaged)
-
-    main_mod._dashboard_sanitize_desktop_env(headless_backend=False)
-
-    assert os.environ["HERMES_WEB_DIST"] == packaged

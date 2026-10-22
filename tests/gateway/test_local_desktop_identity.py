@@ -1,12 +1,7 @@
 """Who counts as the Desktop app on this machine, on the unified gateway.
 
-The welcome trial and first-run onboarding are offered only to the local Desktop. Before the gateway
-the Desktop spawned its own ``hermes serve`` and that process carried the proof in its env
-(``HERMES_DESKTOP`` + the spawn token). The gateway serves the Desktop, the CLI, the TUI and bots from
-one process and has neither variable, so ``onboarding.state`` answered ``eligible: false`` for every
-fresh install: the app showed the provider picker and never started onboarding or the trial.
-
-The proof is now per connection: the Desktop says it is local (``client.capabilities
+The welcome trial and first-run onboarding are offered only to the local Desktop. The proof is per
+connection: the Desktop says it is local (``client.capabilities
 {desktop_local}``), and that counts only on a connection that redeemed a native ticket.
 """
 from __future__ import annotations
@@ -48,8 +43,8 @@ async def _connect(tmp_path, monkeypatch, *, native=True, config=None):
     monkeypatch.setenv("HERMES_HOME", str(home))
     monkeypatch.setattr(server, "_hermes_home", str(home))
     monkeypatch.setattr(server, "_db", None)
-    monkeypatch.setattr("gateway.run._hermes_home", home)  # frozen at import: the first test's home otherwise
-    for name in ("HERMES_DESKTOP", "HERMES_DASHBOARD_SESSION_TOKEN"):  # the gateway's own env has neither
+    monkeypatch.setattr("gateway.run._hermes_home", home)
+    for name in ("HERMES_DESKTOP", "HERMES_DASHBOARD_SESSION_TOKEN"):
         monkeypatch.delenv(name, raising=False)
     store = SessionStore(home / "sessions", GatewayConfig())
     runner = SimpleNamespace(_session_db=store._db, session_store=store, _draining=False, adapters={},
@@ -59,7 +54,7 @@ async def _connect(tmp_path, monkeypatch, *, native=True, config=None):
     authority = await initialize_session_authority(runner, profile_id=str(home), instance_id="owner")
     identity: dict = {"user_id": "uid:1", "provider": "local", "profile_id": str(home), "instance_id": "owner"}
     if native:
-        identity["native_bootstrap"] = True  # redeemed a ticket from this machine's control socket
+        identity["native_bootstrap"] = True
     transport = _Transport(identity)
     connection = AuthorityConnection(authority, transport, identity)
     from gateway.session_local_migration import bind_native_transport
@@ -81,14 +76,11 @@ async def _request(conn, rid, method, params):
 
 @pytest.mark.asyncio
 async def test_a_fresh_install_is_offered_onboarding_once_the_desktop_says_it_is_local(tmp_path, monkeypatch):
-    # A brand-new user on their own computer: no provider, no Nous identity, --fresh-install.
     conn = await _connect(tmp_path, monkeypatch)
     try:
         before = await _request(conn, 1, "onboarding.state", {"assume_fresh": True})
-        assert before["result"]["eligible"] is False  # nothing has said this is the local Desktop yet
+        assert before["result"]["eligible"] is False
 
-        # As the Desktop sends it: on its own after server_requests, so a backend older than the field
-        # refuses only this call. The earlier answer stands.
         from tui_gateway import server_requests
         await _request(conn, 2, "client.capabilities", {"server_requests": True})
         declared = await _request(conn, 3, "client.capabilities", {"desktop_local": True})
@@ -128,7 +120,7 @@ async def test_a_desktop_chat_runs_its_turns_as_work_for_the_local_desktop(tmp_p
     try:
         await _request(conn, 1, "client.capabilities", {"server_requests": True, "desktop_local": True})
         desktop = (await _request(conn, 2, "session.create", {"source": "gui", "request_id": "a"}))["result"]
-        conn.transport.desktop_local = False  # e.g. the same gateway's TUI connection
+        conn.transport.desktop_local = False
         tui = (await _request(conn, 3, "session.create", {"source": "tui", "request_id": "b"}))["result"]
 
         def inside_turn(stored):
@@ -138,7 +130,7 @@ async def test_a_desktop_chat_runs_its_turns_as_work_for_the_local_desktop(tmp_p
 
         assert inside_turn(desktop["stored_session_id"]) is True
         assert inside_turn(tui["stored_session_id"]) is False
-        assert on_local_desktop_backend() is False  # nothing leaks out of the turn
+        assert on_local_desktop_backend() is False
     finally:
         await conn.connection.close()
 
@@ -160,7 +152,7 @@ async def test_a_trial_users_desktop_chat_runs_on_the_free_model(tmp_path, monke
         receipt = local_receipt(conn.authority.db, created["result"]["stored_session_id"])
         assert receipt["policy"]["model"] == anon_auth.GUEST_MODEL
 
-        conn.transport.desktop_local = False  # the trial is the local Desktop's only
+        conn.transport.desktop_local = False
         refused = await _request(conn, 3, "session.create", {"source": "gui", "request_id": "b"})
         assert "error" in refused, refused
     finally:
@@ -174,7 +166,7 @@ async def test_a_fresh_launch_claims_the_trial_and_opens_onboarding_on_it(tmp_pa
     state = {}
     guest = {"auth_method": anon_auth.ANON_AUTH_METHOD, anon_auth.WELCOME_CLAIM_FLAG: True}
 
-    def claim(**kwargs):  # the portal mint: the guest exists from here on
+    def claim(**kwargs):
         if welcome_trial.claim_blocker(assume_fresh=kwargs.get("assume_fresh", False)):
             return None
         state.update(guest)
@@ -197,9 +189,6 @@ async def test_a_fresh_launch_claims_the_trial_and_opens_onboarding_on_it(tmp_pa
 
 @pytest.mark.asyncio
 async def test_the_first_local_desktop_connection_runs_the_desktop_boot_work(tmp_path, monkeypatch):
-    """`hermes serve` recorded a fresh install at boot (onboarding stays due when the first launch misses
-    the run). The gateway never boots that way, so the local Desktop's first accepted connection does it,
-    as work for that Desktop, and only once."""
     from hermes_cli import anon_auth, free_tier_bootstrap, onboarding_run
     from tui_gateway import server
     seen = []

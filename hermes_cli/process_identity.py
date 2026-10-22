@@ -313,15 +313,6 @@ def local_desktop_client(identity: Optional[dict], declared: object) -> bool:
             and identity.get("native_bootstrap") is True)
 
 
-def is_local_desktop_backend() -> bool:
-    """Working for the Desktop on this machine: inside a ``serving_local_desktop`` activity (the unified
-    gateway), or the backend the local Desktop spawned (the pool spawn's credential, never the SSH spawn:
-    its token arrives as a file on argv, and that host is another computer)."""
-    if _SERVING_LOCAL_DESKTOP.get():
-        return True
-    return os.environ.get("HERMES_DESKTOP") == "1" and os.environ.get("HERMES_DASHBOARD_SESSION_TOKEN", "") != ""
-
-
 def _desktop_spawner_identity() -> tuple[Optional[int], Optional[float]]:
     """Spawner ``(pid, create_time)`` from the Electron app's HERMES_PARENT_PID (+ optional
     ``winms:<ms>`` start marker) parent-death watchdog vars, so ledger lineage works with every

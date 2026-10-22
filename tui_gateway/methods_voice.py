@@ -531,7 +531,7 @@ def _(rid, params: dict) -> dict:
     # than the field refuses only that call and keeps the ``server_requests`` it already accepted.
     if "server_requests" in params:
         server_requests.advertise(transport, bool(params.get("server_requests")))
-    if "desktop_local" in params and hasattr(transport, "auth_identity"):  # a WebSocket client
+    if "desktop_local" in params and hasattr(transport, "auth_identity"):
         transport.desktop_local = local_desktop_client(transport.auth_identity, params.get("desktop_local"))
         if transport.desktop_local:
             from tui_gateway import server

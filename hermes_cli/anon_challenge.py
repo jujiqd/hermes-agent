@@ -122,7 +122,7 @@ def client_surface() -> str:
     desktop app spawned, else ``cli``. ``HERMES_DESKTOP``
     alone is inherited by every terminal-pane shell, so desktop ownership needs the spawn credential."""
     from hermes_cli.process_identity import is_desktop_owned_backend, serves_local_desktop_now
-    if serves_local_desktop_now():  # the gateway, working for the Desktop app on this machine
+    if serves_local_desktop_now():
         return "desktop"
     status = sys.modules.get("gateway.status")
     if status is not None and status.owns_gateway_runtime_lock():

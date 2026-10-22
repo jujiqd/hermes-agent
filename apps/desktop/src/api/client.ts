@@ -327,8 +327,6 @@ export class HermesGateway extends JsonRpcGatewayClient {
     })
   }
 
-  // Only a local connection dials natively (electron/local-gateway.ts): this machine's gateway, with
-  // a ticket from its private control socket, which is what the backend checks the claim against.
   protected override isDesktopLocal(): boolean {
     return this.canonical
   }

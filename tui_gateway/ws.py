@@ -134,7 +134,6 @@ class WSTransport:
         #: for legacy-token/stdio. RPC params can never populate it: sole identity authority for browser controllers
         #: and for the ``user_id`` the agent is built with (``server._session_auth_user_id``).
         self.auth_identity = auth_identity
-        # Accepted ``client.capabilities {desktop_local}`` (process_identity.local_desktop_client).
         self.desktop_local = False
         #: The served profile home whose skin this peer follows (None = the launch home); see change_watcher.
         self.skin_home: str | None = None
