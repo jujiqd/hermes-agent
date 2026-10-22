@@ -146,7 +146,11 @@ _REAL_PROFILE_CHROME_FLAGS = (
     "--remote-debugging-port=0", "--no-first-run", "--no-default-browser-check",
     "--disable-background-networking", "--disable-component-update", "--disable-default-apps",
     "--disable-hang-monitor", "--disable-popup-blocking", "--disable-prompt-on-repost",
-    "--disable-sync", "--disable-features=Translate", "--no-startup-window",
+    "--disable-sync", "--no-startup-window",
+    # OptimizationGuide*: without these the copy-browser downloads Chrome's ~4 GB on-device model
+    # (Gemini Nano, OptGuideOnDeviceModel/) into the snapshot dir; --disable-component-update doesn't stop it.
+    "--disable-features=Translate,OptimizationGuideModelDownloading,OptimizationGuideOnDeviceModel,"
+    "OptimizationHintsFetching",
 )
 
 

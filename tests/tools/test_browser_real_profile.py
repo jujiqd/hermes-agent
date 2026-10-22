@@ -1214,3 +1214,11 @@ class TestWindowsLockedProfileCopy:
         dst, err = bc.snapshot_real_profile("chrome", src=str(root))
         assert dst is None
         assert err
+
+
+def test_real_profile_launch_disables_on_device_model_download():
+    """The copy-browser must not pull Chrome's ~4 GB on-device model into the snapshot dir."""
+    flags = " ".join(bt_real_profile._REAL_PROFILE_CHROME_FLAGS)
+    assert "--disable-features=" in flags
+    for feature in ("OptimizationGuideModelDownloading", "OptimizationGuideOnDeviceModel", "Translate"):
+        assert feature in flags
