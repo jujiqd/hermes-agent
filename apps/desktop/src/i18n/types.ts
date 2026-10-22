@@ -3337,6 +3337,8 @@ catalog: CatalogTranslations
     noOutput: string
     cancelling: string
     cancelInstall: string
+    cancelledTitle: string
+    cancelledDesc: string
     transcriptSaved: string
     copiedOutput: string
     copyOutput: string
