@@ -1,5 +1,6 @@
 """GatewayAgent drives main's HermesCLI callbacks from a scripted gateway (no live gateway)."""
 import asyncio
+import json
 import threading
 from contextlib import asynccontextmanager
 
@@ -485,6 +486,34 @@ def test_gateway_sudo_request_opens_mains_sudo_panel_and_replies_with_the_value(
         set_sudo_password_callback(None)
     assert asked == [1]
     assert replies == [("srq-abc", {"value": "pw-from-panel"})]
+
+
+@pytest.mark.parametrize(("method", "params", "setter", "callback", "expected"), [
+    ("vault.code", {"site": "example.com", "hint": ""}, "set_code_prompt_callback",
+     lambda site, hint: "123456", "123456"),
+    ("vault.unlock_prompt", {"backend": "bitwarden", "display_name": "Bitwarden"}, "set_unlock_prompt_callback",
+     lambda backend, name: "master", "master"),
+    ("vault.save_login", {"origin": "https://example.com", "site": "example.com"}, "set_save_login_prompt_callback",
+     lambda origin, site: {"identifier": "me@example.com", "password": "pw"},
+     json.dumps({"identifier": "me@example.com", "password": "pw"})),
+    ("vault.save_login", {"origin": "https://example.com", "site": "example.com"}, "set_save_login_prompt_callback",
+     lambda origin, site: None, ""),
+])
+def test_gateway_vault_requests_open_mains_panels_and_reply_with_the_value(make_agent, method, params, setter,
+                                                                           callback, expected):
+    """The gateway's ``vault.*`` server→client requests are answered by main's vault panels (the turn's
+    registered callbacks); a classic CLI viewer no longer leaves them to time out."""
+    from agent.vault_backends import unlock
+    request = {"jsonrpc": "2.0", "id": "srq-vault", "method": method, "params": {"session_id": SID, **params}}
+    agent, _ = make_agent([request, frame("message.complete", {"text": "ok", "outcome": "completed"})])
+    replies = []
+    agent.connection.reply = lambda rid, result: replies.append((rid, result)) or True
+    getattr(unlock, setter)(callback)
+    try:
+        agent.run_conversation("sign in")
+    finally:
+        getattr(unlock, setter)(None)
+    assert replies == [("srq-vault", {"value": expected})]
 
 
 def test_connection_reply_sends_a_jsonrpc_response_frame():
