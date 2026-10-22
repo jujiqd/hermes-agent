@@ -13,6 +13,7 @@ import { esNotices } from './es_notices'
 import { esOnboarding } from './es_onboarding'
 import { esPluginUpdate } from './es_plugin_update'
 import { esProjects } from './es_projects'
+import { esSettingsNav, esSettingsPage } from './es_settings_nav'
 import { esSharedMetrics } from './es_shared_metrics'
 import { esThemePicker } from './es_theme_picker'
 import { esUpdateChannel } from './es_update_channel'
@@ -745,25 +746,8 @@ export const esOverrides = {
       pageCount: (n: number) => (n === 1 ? '1 página' : `${n} páginas`),
       missing: 'Este plugin no tiene página de ajustes. Puede que esté desactivado o desinstalado.'
     },
-    nav: {
-      providers: 'Proveedores',
-      providerAccounts: 'Cuentas',
-      providerApiKeys: 'Claves API',
-      providerCustomEndpoints: 'Endpoints personalizados',
-      providerLocalModels: 'Modelos locales',
-      gateway: 'Gateway',
-      apiKeys: 'Herramientas y claves',
-      keybinds: 'Atajos de teclado',
-      keysTools: 'Herramientas',
-      keysSettings: 'Configuración',
-      mcp: 'MCP',
-      archivedChats: 'Chats archivados',
-      sessions: 'Sesiones',
-      about: 'Acerca de',
-      billing: 'Facturación',
-      notifications: 'Notificaciones',
-      vault: 'Contraseñas e inicios de sesión'
-    },
+    nav: esSettingsNav,
+    page: esSettingsPage,
     plugins: {
       title: 'Plugins de escritorio',
       openFolder: 'Abrir la carpeta de plugins de escritorio',
