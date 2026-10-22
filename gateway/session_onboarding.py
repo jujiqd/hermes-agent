@@ -143,7 +143,8 @@ async def _create_chat(connection):
     from hermes_state_local import commit_local_session
     authority = connection.authority
     staged = stage_local_session(authority, connection.actor, {'source': 'gui', 'request_id': uuid.uuid4().hex},
-                                 client_local=connection.native_owner)
+                                 client_local=connection.native_owner,
+                                 desktop_local=getattr(connection.transport, 'desktop_local', False))
     if not (staged['policy'] or {}).get('model'):
         # Nothing to run the chat on (a rerun before any provider is set up): no chat, the way a blocked
         # claim opens none, instead of a row whose launch policy can never be restored.

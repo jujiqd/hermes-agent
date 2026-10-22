@@ -104,6 +104,29 @@ def start_due_boot() -> None:
     spawn_context_thread(finish, name="onboarding-due", args=(compute,)).start()
 
 
+_local_desktop_boot_lock = threading.Lock()
+_local_desktop_boot_started = False
+
+
+def begin_local_desktop_boot() -> None:
+    """The local Desktop's first accepted connection to this process. It no longer spawns its own
+    ``hermes serve``, so the boot work that ran there (record a fresh install, settle an interrupted
+    claim, the setup record and the due answer) runs here, once, as work for that Desktop."""
+    global _local_desktop_boot_started
+    from hermes_cli import free_tier_bootstrap
+    from hermes_cli.process_identity import serving_local_desktop
+    from tui_gateway.launch_profile_policy import launch_profile_scope_if_multiplexed
+
+    with _local_desktop_boot_lock:
+        if _local_desktop_boot_started:
+            return
+        _local_desktop_boot_started = True
+    # The record and the latch are the launch profile's; the connecting profile may be another one.
+    with launch_profile_scope_if_multiplexed(), serving_local_desktop(True):  # threads copy this context
+        free_tier_bootstrap.start_background_bootstrap()
+        start_due_boot()
+
+
 # ── first-run onboarding: one chat in the default profile, driven by setup_beat ───────────────
 
 # Onboarding always runs in the default profile, whichever profile this backend was launched under.

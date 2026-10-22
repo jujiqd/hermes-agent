@@ -11957,6 +11957,11 @@
             "default": false,
             "title": "Server Requests",
             "type": "boolean"
+          },
+          "desktop_local": {
+            "default": false,
+            "title": "Desktop Local",
+            "type": "boolean"
           }
         },
         "title": "ClientCapabilitiesParams",

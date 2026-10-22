@@ -998,6 +998,27 @@ def policy_turn_toolsets(authority, policy, config, session_id):
     return onboarding_chat_toolsets(list(policy.current_toolsets(config)), getattr(authority, 'db', None), session_id)
 
 
+def local_desktop_turn(runner, source, scope):
+    """*scope* (the profile scope a turn enters), also marked as work for the local Desktop when the
+    turn belongs to a Desktop chat its creator's connection declared local (``stage_local_session``);
+    any other turn gets *scope* untouched. Read from the live policy without raising: a cold policy
+    is restored, or refused, by the turn."""
+    from gateway.config import Platform
+    policy = None
+    if getattr(source, 'platform', None) == Platform.LOCAL:
+        policy = getattr(runner._adapter_for_source(source), 'policies', {}).get(source.chat_id)
+    if policy is None or policy.source != 'gui' or json.loads(policy.request_json).get('desktop_local') is not True:
+        return scope
+    return _serving_local_desktop_within(scope)
+
+
+@contextmanager
+def _serving_local_desktop_within(scope):
+    from hermes_cli.process_identity import serving_local_desktop
+    with scope, serving_local_desktop(True):
+        yield
+
+
 def policy_for_source(runner, source):
     from gateway.session_local import LocalSessionAdapter
     from gateway.config import Platform
