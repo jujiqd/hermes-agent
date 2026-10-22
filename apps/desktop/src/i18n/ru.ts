@@ -38,7 +38,6 @@ const RU_NOUN = (count: number | string, one: string, few: string, many: string)
 }
 
 export const ruOverrides = {
-
   catalog: ruCatalog,
   connectors: ruConnectors.connectors,
   sharedMetrics: ruSharedMetrics,
@@ -669,7 +668,8 @@ export const ruOverrides = {
         imageInputMode: 'Вложения изображений',
         apiMaxRetries: 'Повторы API',
         serviceTier: 'Уровень сервиса',
-        toolUseEnforcement: 'Принудительное использование инструментов'
+        toolUseEnforcement: 'Принудительное использование инструментов',
+        autoPull: 'Подтягивать автоматически'
       },
       terminal: {
         cwd: 'Рабочий каталог',
@@ -838,7 +838,9 @@ export const ruOverrides = {
       timezone: 'Идентификатор часового пояса IANA. Пустое значение — системный часовой пояс.',
       agent: {
         imageInputMode: 'Управляет тем, как вложения изображений отправляются модели.',
-        maxTurns: 'Верхний предел ходов с вызовами инструментов, после которого Hermes останавливает запуск.'
+        maxTurns: 'Верхний предел ходов с вызовами инструментов, после которого Hermes останавливает запуск.',
+        autoPull:
+          'Перематывает ветку по умолчанию вперёд при запуске сессии, если в рабочей копии нет локальных изменений и коммитов. Проекты также могут включить это в меню проекта.'
       },
       terminal: {
         cwd: 'Папка проекта по умолчанию для инструментов и терминала.',
@@ -3875,14 +3877,6 @@ export const ruOverrides = {
       title: 'Боковая панель',
       description: 'Показывает мобильную боковую панель.',
       toggle: open => `${open ? 'Показать' : 'Скрыть'} боковую панель`
-    }
-  },
-  freeTier: {
-    offer: {
-      heading: 'Продолжайте с Hermes',
-      body: 'Вы пользуетесь бесплатным лимитом. Если продолжите работать с Hermes, скоро начнёте упираться в ограничения. Войдите с бесплатной учётной записью Nous, чтобы получить больший лимит.',
-      signIn: 'Войти',
-      notNow: 'Не сейчас'
     }
   }
 } satisfies TranslationOverrides
