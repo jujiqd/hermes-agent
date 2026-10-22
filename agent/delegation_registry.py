@@ -2,17 +2,18 @@
 
 Populated by plugins via :meth:`PluginContext.register_delegation_provider`; ``delegate_task``
 asks :func:`get_active_provider` which strategy turns each task into a child run. Selection is
-``delegation.backend`` in config.yaml. Unset (or ``default``) is the built-in strategy, today's
-behaviour: every child follows the ``delegation`` section (``delegation.provider`` /
-``delegation.model`` / ``delegation.base_url`` ..., else the parent's route). A configured backend
-that is not registered or reports unavailable falls back to ``default`` with one warning, so a
-disabled plugin never takes delegation down; its schema parameters are absent too, since the
-schema is built from the same resolution.
+``delegation.backend`` in config.yaml, ``default`` when unset. The default strategy (today's
+behaviour: every child follows the ``delegation`` section, else the parent's route) is itself a
+plugin, the bundled ``plugins/delegation/default``, registered through the same seam as any other.
+A configured backend that is not registered or reports unavailable falls back to ``default`` with
+one warning, so a disabled plugin never takes delegation down; its schema parameters are absent
+too, since the schema is built from the same resolution.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Mapping, Optional
 
 from agent.delegation_provider import DelegationProvider
@@ -22,30 +23,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BACKEND = "default"
 
-
-class DefaultDelegationProvider(DelegationProvider):
-    """Today's strategy: every task takes the route the ``delegation`` section describes."""
-
-    @property
-    def name(self) -> str:
-        return DEFAULT_BACKEND
-
-    def route_task(self, task: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any]:
-        return dict(config)
-
-
-def _reject_builtin_collision(key: str) -> None:
-    logger.warning("Delegation provider '%s' shadows the built-in strategy; registration ignored.", key)
-
-
 _registry: ProviderRegistry[DelegationProvider] = ProviderRegistry(
     label="Delegation", provider_cls=DelegationProvider, logger=logger, normalize=lower_key,
-    builtin_names=frozenset({DEFAULT_BACKEND}), on_builtin_collision=_reject_builtin_collision,
 )
 _registry.export(globals())
 
-_BUILTIN_DEFAULT = DefaultDelegationProvider()
 _warned_fallbacks: set[str] = set()
+_BUNDLED_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 
 def configured_backend(config: Mapping[str, Any]) -> str:
@@ -54,21 +38,60 @@ def configured_backend(config: Mapping[str, Any]) -> str:
     return lower_key(raw) if isinstance(raw, str) and raw.strip() else DEFAULT_BACKEND
 
 
-def get_active_provider(config: Mapping[str, Any]) -> DelegationProvider:
-    """The provider ``config`` (the ``delegation`` section) selects; ``default`` when unset,
-    unregistered or unavailable."""
+class _BundledRegistrar:
+    """The one ``ctx`` method a bundled strategy's ``register()`` calls."""
+
+    def register_delegation_provider(self, provider: DelegationProvider) -> None:
+        _registry.register(provider)
+
+
+def _load_bundled(name: str) -> Optional[DelegationProvider]:
+    """Load the bundled strategy ``plugins/delegation/<name>/`` on first use when the plugin sweep has
+    not registered it (a runtime that never ran discovery, or pinned it with zero plugins): delegation
+    is a core tool and must not depend on the sweep. ``plugins.disabled`` still wins."""
+    import importlib.util
+    from hermes_cli.plugins import get_bundled_plugins_dir
+    from hermes_cli.plugins_discovery import _get_disabled_plugins
+    if not _BUNDLED_NAME_RE.match(name):  # the name comes from config.yaml: never a path
+        return None
+    plugin_dir = get_bundled_plugins_dir() / "delegation" / name
+    if not (plugin_dir / "plugin.yaml").is_file() or {name, f"delegation/{name}"} & _get_disabled_plugins():
+        return None
+    spec = importlib.util.spec_from_file_location(
+        f"hermes_bundled_delegation_{name.replace('-', '_')}", plugin_dir / "__init__.py",
+        submodule_search_locations=[str(plugin_dir)])
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.register(_BundledRegistrar())
+    return _registry.get_provider(name)
+
+
+def _usable(name: str) -> Optional[DelegationProvider]:
+    """The registered, available provider for ``name``: registry, else a bundled strategy of that
+    name, else one plugin discovery sweep (a caller that never imported ``model_tools``)."""
+    provider = _registry.get_provider(name) or _load_bundled(name)
+    if provider is None:
+        from hermes_cli.plugins import discover_plugins
+        discover_plugins()
+        provider = _registry.get_provider(name)
+    if provider is None or not is_available_safe(provider, logger, "delegation provider %s.is_available() raised %s"):
+        return None
+    return provider
+
+
+def get_active_provider(config: Mapping[str, Any]) -> Optional[DelegationProvider]:
+    """The provider ``config`` (the ``delegation`` section) selects, else ``default``; None only when
+    no default strategy is registered either (the bundled plugin was disabled)."""
     name = configured_backend(config)
-    if name == DEFAULT_BACKEND:
-        return _BUILTIN_DEFAULT
-    provider: Optional[DelegationProvider] = _registry.get_provider(name)
-    if provider is not None and is_available_safe(
-            provider, logger, "delegation provider %s.is_available() raised %s"):
+    provider = _usable(name)
+    if provider is not None or name == DEFAULT_BACKEND:
         return provider
     if name not in _warned_fallbacks:
         _warned_fallbacks.add(name)
         logger.warning(
-            "delegation.backend '%s' is %s; subagents use the default strategy. Install/enable the "
-            "plugin that provides it (`hermes plugins list`).", name,
-            "not registered" if provider is None else "unavailable",
+            "delegation.backend '%s' is not registered or unavailable; subagents use the default strategy. "
+            "Install/enable the plugin that provides it (`hermes plugins list`).", name,
         )
-    return _BUILTIN_DEFAULT
+    return _usable(DEFAULT_BACKEND)

@@ -41,7 +41,12 @@ class TaskRoute:
 
 def _active_provider(config: Mapping[str, Any]) -> DelegationProvider:
     from agent.delegation_registry import get_active_provider
-    return get_active_provider(config)
+    provider = get_active_provider(config)
+    if provider is None:
+        raise DelegationRouteError(
+            "No delegation strategy is available: the bundled plugin delegation/default is disabled. "
+            "Remove it from plugins.disabled in config.yaml.")
+    return provider
 
 
 def _declared_parameters(provider: DelegationProvider, config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
@@ -66,12 +71,12 @@ def _declared_parameters(provider: DelegationProvider, config: Mapping[str, Any]
 
 
 def schema_extension(config: Mapping[str, Any]) -> tuple[dict[str, dict[str, Any]], str]:
-    """``(extra task properties, description addendum)`` for the active provider; empty for the
-    built-in default so its schema stays byte-identical."""
-    from agent.delegation_registry import DEFAULT_BACKEND
-    provider = _active_provider(config)
-    if provider.name == DEFAULT_BACKEND:
-        return {}, ""
+    """``(extra task properties, description addendum)`` for the active provider (none for the
+    default strategy, whose schema is the base one)."""
+    try:
+        provider = _active_provider(config)
+    except DelegationRouteError:
+        return {}, ""  # the spawn path reports it; the schema just stays the base one
     try:
         addendum = provider.description(config)
     except Exception:  # plugin boundary: a broken provider costs its guidance, never the delegate_task tool
@@ -261,12 +266,12 @@ def resolve_task_routes(task_list: list[dict[str, Any]], config: Mapping[str, An
     routes resolve credentials once per call (the default provider resolves exactly once, as
     before the seam)."""
     from agent.delegation_registry import DEFAULT_BACKEND
-    provider = _active_provider(config)
-    declared = _declared_parameters(provider, config)
-    from_backend = provider.name != DEFAULT_BACKEND
     cache: dict[str, TaskRoute] = {}
     routes: list[TaskRoute] = []
     try:
+        provider = _active_provider(config)
+        declared = _declared_parameters(provider, config)
+        from_backend = provider.name != DEFAULT_BACKEND
         for i, task in enumerate(task_list):
             route = _route_one(provider, declared, i, task, config)
             if from_backend:
