@@ -10,6 +10,7 @@ import {
   $desktopOnboarding,
   completeDesktopOnboarding,
   confirmOnboardingModel,
+  DEFAULT_ONBOARDING_REASON,
   type DesktopOnboardingState,
   type OnboardingContext,
   refreshOnboarding,
@@ -206,6 +207,23 @@ describe('refreshOnboarding', () => {
     expect($desktopOnboarding.get().providers?.map(p => p.id)).toEqual(['fresh'])
     expect($desktopOnboarding.get().reason).toContain('No usable credentials found for openrouter.')
     expect($desktopOnboarding.get().reason).toContain('setup.status reports configured credentials')
+  })
+
+  it('shows no sentence of its own over the picker when nothing is set up', async () => {
+    const unconfigured: OnboardingContext['requestGateway'] = async method => {
+      if (method === 'setup.status') {
+        return { provider_configured: false } as never
+      }
+
+      if (method === 'setup.runtime_check') {
+        return { ok: false, error: 'Hermes is not connected to any AI provider yet. Run `hermes model` to pick one.' } as never
+      }
+
+      throw new Error(`unexpected gateway method: ${method}`)
+    }
+
+    expect(await refreshOnboarding(onboardingContext(unconfigured))).toBe(false)
+    expect($desktopOnboarding.get()).toMatchObject({ configured: false, reason: DEFAULT_ONBOARDING_REASON })
   })
 
   it('keeps cached providers when onboarding was not re-requested', async () => {

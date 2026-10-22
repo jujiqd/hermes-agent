@@ -52,6 +52,9 @@ export interface RuntimeReadinessResult {
   ready: boolean
   reason: null | string
   source: 'fallback' | 'runtime_check' | 'setup_status'
+  /** The check failed and setup.status says no provider is set up at all: `reason` is then the
+   *  check's own sentence for "nothing is set up", not a cause. */
+  unconfigured?: true
 }
 
 export type RuntimeReadinessDisplay = 'checking' | 'needs_setup' | 'ready' | 'unavailable'
@@ -160,7 +163,8 @@ export function interpretRuntimeReadiness(
       checksDisagree,
       ready: false,
       reason,
-      source: 'runtime_check'
+      source: 'runtime_check',
+      ...(setupConfigured === false ? { unconfigured: true as const } : {})
     }
   }
 
